@@ -7,3 +7,14 @@ Impostare il modello nel modo seguente:
     - fattore ambientale (?)
     - ...
 - Constraint: settare delle threshold che incrementano l'utilità di un fattore moltiplicativo quanto più l'area inserita è maggiore. L'incremento di utilità vale per la cella stessa e in maniera scalata per le celle circostanti.
+
+# Aggiornamento 18-04
+Improntare il modello sui seguenti punti:
+1. Calcolare l'utilità a runtime
+2. Si può costruire sia su strade che su cortili interni andado a considerare pesi diversi nell'influenza sul fattore di utilità:
+    - **step 1:** porre la penalità come constraint sull'area verde massima edificabile (es: 0.3 * estensione_strada, 0.7 * estensione_cortile)
+    - **step 2:** aggiungere anche un fattore penalizzante all'utilità di ognuno
+3. esprimere il budget in termini di numero massimo di nuove aree verdi che inseriamo
+4. Differenziare gli interventi e valutare effetti diversi sull'utilità: 
+    - inserimento di nuove green cell interamente da zero -> utilità che segue i principi precedentemente menzionati
+    - estensione di aree verdi esistenti -> scalare l'utilità del verde aggiunto in maniera esponenziale (o altro), in aggiunta ai fattori penalizzanti precedentemente menzionati.

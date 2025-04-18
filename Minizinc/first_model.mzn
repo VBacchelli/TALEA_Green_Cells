@@ -15,6 +15,9 @@ var int: cost = sum(i in 1..m, j in 1..n where GS[i, j] <= threshold)(green_cell
 var float: distr_mean;
 
 % ----- Constraints ----- #
+
+%%% TODO: aggiungi verde esistente anche alle nuove green cells %%%
+
 constraint forall(i in 1..m, j in 1..n)(
     if FS[i, j] < threshold then green_cells[i, j] = 0 endif /\
     %if FS[i, j] >= 2000 then green_cells[i, j] != 0 endif /\

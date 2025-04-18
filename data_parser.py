@@ -36,7 +36,7 @@ def to_mzn(instance):
     text = n_rows_str + n_cols_str + free_space_str + green_space_str
     return text
 
-def density_estimation(df, zones):
+def density_estimation(df):
     """
     Description
     """
@@ -89,12 +89,12 @@ def parse(output_dir):
     #gdf_pop.set_index("id", inplace=True)
     n_rows, n_cols = np.max(gdf_tot['row_index']) + 1, np.max(gdf_tot['col_index']) + 1
     df_pop = pd.read_csv("./dataset/population_stat.csv")
-    zones_bo = gdf_pop['Zona'].unique().tolist()
-    zones_bo.replace('S. Vitale', 'San Vitale', inplace=True)
+    #zones_bo = gdf_pop['Zona'].unique().tolist()
+    #zones_bo.replace('S. Vitale', 'San Vitale', inplace=True)
 
     # Data pre-processing
     gdf_tot['NUMPOINTS'] = gdf_trees['NUMPOINTS']
-    densities_df = density_estimation(df_pop, zones_bo)
+    densities_df = density_estimation(df_pop)
 
     green_space = np.zeros((n_rows, n_cols), dtype=int)
     free_space = np.zeros((n_rows, n_cols), dtype=int)
@@ -122,7 +122,7 @@ def parse(output_dir):
                     temp_green_estention += green_space[i][j] / 2
                 elif i == row_index-2 or i == row_index+2 or j == col_index-2 or j == col_index+2:
                     temp_green_estention += green_space[i][j] / 4
-        utility_scores[i][j] = utility_index(temp_green_estention, densities_df[row_index][col_index])
+        utility_scores[row_index][col_index] = utility_index(temp_green_estention, densities_df[row_index][col_index])
 
     instance = (n_rows, n_cols, free_space, green_space, utility_scores)
 
