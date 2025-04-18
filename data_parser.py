@@ -1,9 +1,10 @@
 import geopandas as gpd
 import os
 import numpy as np
-
+import pandas as pd
 
 def to_mzn(instance):
+    #### TODO: add utility scores to the output instance
     """
     Takes the problem instance and converts it to a string in the format required by MiniZinc.
     
@@ -14,7 +15,7 @@ def to_mzn(instance):
 
     """
 
-    n_rows, n_cols, free_space, green_space = instance
+    n_rows, n_cols, free_space, green_space, utility_scores = instance
     assert len(free_space) == len(green_space)
 
     n_rows_str = 'm = ' + str(n_rows) + ';\n'
@@ -35,34 +36,95 @@ def to_mzn(instance):
     text = n_rows_str + n_cols_str + free_space_str + green_space_str
     return text
 
-def parse(input_dataset, output_dir):
+def density_estimation(df, zones):
+    """
+    Description
+    """
+    # densities = pd.DataFrame(columns=df.columns)
+    # for zone in zones:
+    #     temp_df = df[df['Zona'] == zone]
+    #     temp_df = df[df['Nomi misure'] == 'Densità di popolazione']
+    #     pd.concat([densities, temp_df], axis=0, ignore_index=True)
+    
+    # Compute density for each cell
+    n_rows, n_cols = np.max(df['row_index']) + 1, np.max(df['col_index']) + 1
+    out = np.zeros((n_rows, n_cols), dtype=float)
+    for id in range(1, max(df['id'])+1):
+        temp_df = df[df['id'] == id]
+        row_index = temp_df['row_index'].values[0]
+        col_index = temp_df['col_index'].values[0]
+        temp_sum = 0
+        for _, row in temp_df.iterrows():
+            zone = row['nomezona']
+            if zone == 'S. Vitale':
+                zone = 'San Vitale'
+            temp_df = df[df['Zona'] == zone]
+            temp_df = df[df['Nomi misure'] == 'Densità di popolazione']
+            density = float(df['Valori misure'].values[0])
+            temp_sum += density * row['intersect_area']
+        out[row_index][col_index] = temp_sum / 10000
+    return out
+
+def utility_index(green_est, population):
+    """
+    Description
+    """
+    return green_est / population
+
+def parse(output_dir):
     """
     Generates the parsed file in the Minizinc data format from the input dataset to the specified output directory.
 
     Input:
-    - input_dataset: str, path to the input dataset
     - output_dir: str, path to the output directory
 
     """
 
     # Read the data
-    gdf = gpd.read_file(input_dataset)
-    gdf.set_index("id", inplace=True)
-    n_rows, n_cols = np.max(gdf['row_index']) + 1, np.max(gdf['col_index']) + 1
+    gdf_tot = gpd.read_file("./dataset/polygon_trees.geojson")
+    gdf_tot.set_index("id", inplace=True)
+    gdf_trees = gpd.read_file("./dataset/count_tree_grid.geojson")
+    gdf_trees.set_index("id", inplace=True)
+    gdf_pop = gpd.read_file("./dataset/zone_bologna.geojson")
+    #gdf_pop.set_index("id", inplace=True)
+    n_rows, n_cols = np.max(gdf_tot['row_index']) + 1, np.max(gdf_tot['col_index']) + 1
+    df_pop = pd.read_csv("./dataset/population_stat.csv")
+    zones_bo = gdf_pop['Zona'].unique().tolist()
+    zones_bo.replace('S. Vitale', 'San Vitale', inplace=True)
 
     # Data pre-processing
-    gdf_new = gdf.drop(columns=['left', 'top', 'right', 'bottom', 'un_gest_pc', 'verde_privato_urbanizzato_pc', \
-                    'rifter_edif_pl_pc', 'rifter_arcstra_li_pc', 'le-aree-verdi-e-le-vie-di-bologna-dedicate-alle-donne_pc', 'geometry'])
+    gdf_tot['NUMPOINTS'] = gdf_trees['NUMPOINTS']
+    densities_df = density_estimation(df_pop, zones_bo)
+
     green_space = np.zeros((n_rows, n_cols), dtype=int)
     free_space = np.zeros((n_rows, n_cols), dtype=int)
-    for _, row in gdf_new.iterrows():
+    utility_scores = np.zeros((n_rows, n_cols), dtype=float)
+    for _, row in gdf_tot.iterrows():
         row_index = int(row['row_index'])
         col_index = int(row['col_index'])
-        green_space[row_index][col_index] = int(row['un_gest_area'] + row['verde_privato_urbanizzato_area'] + 20*row['NUMPOINTS'])
-        free_space[row_index][col_index] = int(10000 - row['rifter_edif_pl_area'] - row['rifter_arcstra_li_area'])
+
+        green_space[row_index][col_index] = int(row['un_gest_area'] + row['verde_privato_urbanizzato_area'] + 0*row['NUMPOINTS'])
         green_space[row_index][col_index] = 10000 if green_space[row_index][col_index] > 10000 else green_space[row_index][col_index]
+
+        free_space[row_index][col_index] = int(10000 - row['rifter_edif_pl_area'])
         free_space[row_index][col_index] = 0 if free_space[row_index][col_index] < 0 else free_space[row_index][col_index]
-    instance = (n_rows, n_cols, free_space, green_space)
+
+        min_row = row_index if row_index - 2 < 0 else row_index - 2
+        max_row = row_index if row_index + 2 > n_rows - 1 else row_index + 2
+        min_col = col_index if col_index - 2 < 0 else col_index - 2
+        max_col = col_index if col_index + 2 > n_cols - 1 else col_index + 2
+        temp_green_estention = green_space[row_index][col_index]
+        for i in range(min_row, max_row + 1):
+            for j in range(min_col, max_col + 1):
+                if i == row_index and j == col_index:
+                    continue
+                elif i == row_index-1 or i == row_index+1 or j == col_index-1 or j == col_index+1:
+                    temp_green_estention += green_space[i][j] / 2
+                elif i == row_index-2 or i == row_index+2 or j == col_index-2 or j == col_index+2:
+                    temp_green_estention += green_space[i][j] / 4
+        utility_scores[i][j] = utility_index(temp_green_estention, densities_df[row_index][col_index])
+
+    instance = (n_rows, n_cols, free_space, green_space, utility_scores)
 
     # Create the output directory if it doesn't exist
     if not os.path.exists(output_dir):
@@ -75,4 +137,4 @@ def parse(input_dataset, output_dir):
        output_file.write(output_text)
 
 if __name__ == '__main__':
-    parse("./dataset/polygon_trees.geojson", "./Minizinc")
+    parse("./Minizinc")
