@@ -8,6 +8,8 @@ Impostare il modello nel modo seguente:
     - ...
 - Constraint: settare delle threshold che incrementano l'utilità di un fattore moltiplicativo quanto più l'area inserita è maggiore. L'incremento di utilità vale per la cella stessa e in maniera scalata per le celle circostanti.
 
+- Constraint 28-04 (contintuità): inserire diminuzione fattore di utilità tanto più il numero di aree libere è elevato -> next step: terza dimensione in modo da tener conto non solo del numero di aree libere ma anche della dimensione di ciascun area 
+
 # Aggiornamento 18-04
 Improntare il modello sui seguenti punti:
 1. Calcolare l'utilità a runtime
