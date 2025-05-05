@@ -60,29 +60,29 @@ def main():
     # #used to compute the area of each element inside the grid
 
     start_time = time.time()
-    #free_space = processing.run("native:multidifference", {'INPUT': grid,'OVERLAYS':['dataset/ferrovia.geojson', 'dataset/colli.geojson', 'dataset/verde_privato_urbanizzato.fgb', 'dataset/un_gest.fgb', 'dataset/aree-stradali.fgb', 'dataset/rifter_edif_pl.fgb'],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    free_space = processing.run("native:multidifference", {'INPUT': grid,'OVERLAYS':['dataset/ferrovia.geojson', 'dataset/colli.geojson', 'dataset/verde_privato_urbanizzato.fgb', 'dataset/un_gest.fgb', 'dataset/aree-stradali.fgb', 'dataset/rifter_edif_pl.fgb'],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     free_space = processing.run("native:multiparttosingleparts", {'INPUT':'dataset/cortili_interni.geojson','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    #free_space = processing.run("native:intersection", {'INPUT':grid,'OVERLAY':free_space,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})
-    free_space = processing.run("native:fieldcalculator", {'INPUT': free_space, 'FIELD_NAME':'intersection_area','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    print(time.time()-start_time)
+    #to compute the area of each free_space, you will obtain the number each grid cell repetead as many times as the number of areas inside of it
+    ## free_space = processing.run("native:intersection", {'INPUT':grid,'OVERLAY':free_space,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})
+    # free_space = processing.run("native:fieldcalculator", {'INPUT': free_space, 'FIELD_NAME':'intersection_area','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    # print(time.time()-start_time)
     save_layer(free_space, 'free_space')
     
-
     '''colli_grid = processing.run("native:intersection", {'INPUT':grid,'OVERLAY':'dataset/colli.geojson','INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
-    save_layer(colli_grid, 'colli_grid')
-    
-    ferrovia_grid = processing.run("native:intersection", {'INPUT':grid,'OVERLAY':'dataset/ferrovia.geojson','INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
-    save_layer(ferrovia_grid, 'ferrovia_grid')
+    #save_layer(colli_grid, 'colli_grid')'''
+
+    '''ferrovia_grid = processing.run("native:intersection", {'INPUT':grid,'OVERLAY':'dataset/ferrovia.geojson','INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    #save_layer(ferrovia_grid, 'ferrovia_grid')'''
 
     #compute the number of square meters free from already existing green areas and buildings
-    grid_with_overlap = processing.run("native:calculatevectoroverlaps", {'INPUT':grid,'LAYERS':['dataset/un_gest.fgb', 'dataset/verde_privato_urbanizzato.fgb', 'dataset/rifter_edif_pl.fgb', 'dataset/rifter_arcstra_li.fgb'],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid,'LAYERS':['dataset/un_gest.fgb', 'dataset/verde_privato_urbanizzato.fgb', 'dataset/rifter_edif_pl.fgb', 'dataset/aree-stradali.fgb', 'dataset/ferrovia.geojson', 'dataset/colli.geojson', free_space],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    grid_with_areas = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_areas,'POINTS':free_space,'WEIGHT':'','CLASSFIELD':'','FIELD':'NUMPOINTS','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(grid_with_areas, 'grid_with_areas')
     
-    #compute the number of tree for each cell
-    grid_with_trees = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_overlap, 'POINTS':'dataset/alberi-manutenzioni.fgb','WEIGHT':'','CLASSFIELD':'','FIELD':'NUMPOINTS','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    #compute the number of tree inside each of the areas not green
+    '''grid_with_trees = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_overlap, 'POINTS':'dataset/alberi-manutenzioni.fgb','WEIGHT':'','CLASSFIELD':'','FIELD':'NUMPOINTS','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(grid_with_trees, 'polygon_trees')'''
-
-
     
     # #the following functions are used to count the number of trees which overlap with the green areas; process is: 
     
