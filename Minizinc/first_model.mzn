@@ -5,7 +5,8 @@ int: m;
 int: n;
 array[1..m, 1..n] of int: FS;
 array[1..m, 1..n] of int: GS;
-int: threshold = 1000;
+array[1..m, 1..n] of float: densities;
+int: threshold = 2000;
 
 % ----- Decision Variables ----- #
 array[1..m, 1..n] of var 0..10000: green_cells;
