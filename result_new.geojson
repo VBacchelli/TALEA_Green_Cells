@@ -1,6 +1,6 @@
 {
 "type": "FeatureCollection",
-"name": "result",
+"name": "result_new",
 "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3857" } },
 "features": [
 { "type": "Feature", "properties": { "id": 70, "row_index": 2, "col_index": 1, "street_cells": 1511.724700030685, "yard_cells": 3302.4024145956619, "num_areas": 6.0 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 1261111.083918832940981, 5543929.320480721071362 ], [ 1261211.083918832940981, 5543929.320480721071362 ], [ 1261211.083918832940981, 5543829.320480721071362 ], [ 1261111.083918832940981, 5543829.320480721071362 ], [ 1261111.083918832940981, 5543929.320480721071362 ] ] ] } },
