@@ -28,7 +28,7 @@ def density_estimation():
         area_km2 = temp_gdf['area'].values[0] / 1000000
         densities.append(row['Residenti'] / area_km2)
     df_pop['Densità'] = densities
-    df_pop.to_csv("dataset/popolazione_per_area_statistica.csv", sep=";", index=False)
+    df_pop.to_csv("dataset/densità_per_area_statistica.csv", sep=";", index=False)
 
 if __name__ == "__main__":
     density_estimation()

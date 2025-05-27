@@ -1,5 +1,17 @@
 # DibuoReale2425
 
+## Useful commands for ReadTheDocs
+Create a virtual environment
+
+Requirements:
+- `pip install sphinx`
+- `pip install sphinx_rtd_theme`
+
+Guide:
+- Create documentation with `sphinx/quickstart doc`
+- Build documentation with `sphinx-build -M html doc/source/ doc/build/` to create the HTML
+- Add your content using ``reStructuredText`` syntax. See the `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>` documentation for details.
+- Start the live server
 
 
 ## Getting started

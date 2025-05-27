@@ -26,14 +26,20 @@ def parse(output_dir, top_k, beta_streets, alpha_yard):
     gdf_trees = gpd.read_file(DATA_DIR_PATH.joinpath("trees_outside_green.geojson"))
     gdf_trees.set_index("id", inplace=True)
     gdf_aree = gpd.read_file(DATA_DIR_PATH.joinpath("aree_statistiche_grid.geojson"))
-    df_pop = pd.read_csv(DATA_DIR_PATH.joinpath("popolazione_per_area_statistica.csv"), sep=";")
+    df_pop = pd.read_csv(DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=";")
     num_cells = np.max(gdf_tot.index)
 
     ### TEMPORARY
     gdf_tot['aree-stradali_area'] = gdf_strade['aree-stradali-modified_area']
     gdf_tot = pd.merge(gdf_tot, gdf_trees['trees count'], how='outer', left_index=True, right_index=True).fillna(0.0)
 
-    densities_df = utils.density_per_area(gdf_aree, df_pop)
+    # Density estimation
+    densities, densities_df = utils.density_per_area(gdf_aree, df_pop)
+    densities_df.set_index("id", inplace=True)
+    densities_df = pd.merge(densities_df, gdf_tot['geometry'], how='outer', left_index=True, right_index=True)
+    densities_gdf = gpd.GeoDataFrame(densities_df)
+    densities_gdf.to_file(DATA_DIR_PATH.joinpath("densities_grid.geojson"), driver='GeoJSON')
+
     green_space = np.zeros((num_cells, ), dtype=float)
     street_space = np.zeros((num_cells, ), dtype=float)
     ext_space = np.zeros((num_cells, ), dtype=float)
@@ -56,7 +62,7 @@ def parse(output_dir, top_k, beta_streets, alpha_yard):
                 green_space, 
                 num_areas, 
                 num_trees, 
-                densities_df)
+                densities)
 
     # Create the output directory if it doesn't exist
     if not os.path.exists(output_dir):

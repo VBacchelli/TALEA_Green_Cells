@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 def to_dzn(instance):
     """
@@ -54,7 +55,8 @@ def density_per_area(gdf_area, df_dens):
     """
     num_cells = np.max(gdf_area['id'])
     out = np.zeros((num_cells, ), dtype=float)
-    for i in range(1, num_cells):
+    df_out = pd.DataFrame(columns=['id', 'density'])
+    for i in range(num_cells):
         temp_df = gdf_area.loc[gdf_area['id'] == i+1]
         temp_sum = 0
         for _, row in temp_df.iterrows():
@@ -63,4 +65,5 @@ def density_per_area(gdf_area, df_dens):
             density = float(temp_dens['Densità'].values[0])
             temp_sum += density * row['intersect_area']
         out[i] = temp_sum / 10000
-    return out
+        df_out.loc[len(df_out)] = [i+1, out[i]]
+    return out, df_out
