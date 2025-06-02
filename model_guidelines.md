@@ -1,14 +1,45 @@
+# Web map Bologna
+- leaflet
+
 # Aggiornamento 07-05
-- parallerizzare e documentare al massimo il modello;
+- parametrizzare e documentare al massimo il modello;
 - creare read the docs;
 - provare a creare un interfaccia web (in alternativa un semplice power point) in modo da mostrare varie configurazioni dei parametri, nella quale evidenziare l'utilità di ogni green cell, la densità di popolazione;
 - aggiungere eventualmente altri parametri;
-- accantonare l'idea della distribuzione, per ora;
+- accantonare l'idea della distribuzione (per ora);
 - provare a considerare alberi e le fontane (cercare un dataset se esiste);
-- provare ad escludere le piazze, es: +1000 m2 nel dataset degli stradi;
-- provare ad esterndere a tutta Bologna, non solo al centro; magari andando poi a ragionare sul centro;
-- next step -> indici di fragilità, ombra (?), multi-scala (?)
-- proporre eventualmente il confronto con diversi modelli di ML (?)
+- provare ad escludere le piazze, es: +1000 m2 nel dataset delle strade;
+- provare ad estendere a tutta Bologna, non solo al centro; magari andando poi a ragionare sul centro;
+- next step -> indici di fragilità (ombra (?), multi-scala (?))
+- (?) proporre eventualmente il confronto con diversi modelli di ML (?)
+
+# Aggiornamento 10-05
+dal dataset aree statistiche estrarre le aree vuote:
+- areoporto
+- via del vivaio
+- lavino di mezzo
+- rigosa
+- san luca
+- paderno
+- san michele in bosco (?)
+- osservanza (?)
+- monte donato
+- ponte savena-la bastia
+- ospedale bellaria
+- lungo savena
+- croce del biacca
+- stradelli guelfi
+- scalo merci san donato 
+- caab
+- cadriano-calamosco
+- savena abbandonato
+- laghetti del rosario
+- la noce
+- tiro a segno
+- caserme rosse-manifattura (?)
+- fiera
+- casteldebole
+- villaggio delle barca
 
 # Guida fattore di utilità
 Impostare il modello nel modo seguente:

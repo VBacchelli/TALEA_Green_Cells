@@ -44,10 +44,10 @@ def save_layer(output_layer, layer_name):
         print(f"Failed to save layer: {writer.errorMessage()}")
 def create_ferrovia():
 
-    binari_ferroviari = change_coordinate_system('dataset/carta-tecnica-comunale-binari-ferroviari.geojson')
+    binari_ferroviari = change_coordinate_system('dataset/raw_data/carta-tecnica-comunale-binari-ferroviari.geojson')
     binari_ferroviari = processing.run("native:dissolve", {'INPUT':binari_ferroviari, 'FIELD':[], 'SEPARATE_DISJOINT':False, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     binari_ferroviari = processing.run("native:buffer", {'INPUT':binari_ferroviari,'DISTANCE':10,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    gdf = gpd.read_file('dataset/aree_statistiche.geojson')
+    gdf = gpd.read_file('dataset/raw_data/aree_statistiche.geojson')
     gdf = gdf[gdf["area_statistica"].isin(["SCALO MERCI SAN DONATO", "SCALO RAVONE"])]
     gdf.to_file("dataset/ferrovia.geojson", driver="GeoJSON")
     ferrovia = processing.run("native:union", {'INPUT':'dataset/ferrovia.geojson','OVERLAY':binari_ferroviari,'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
@@ -56,15 +56,15 @@ def create_ferrovia():
 
 def create_verde():
 
-    un_gest = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/un_gest.fgb','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    un_gest = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/raw_data/un_gest.geojson','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
 
-    verde_privato_urbanizzato = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/verde_privato_urbanizzato.fgb','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    verde_privato_urbanizzato = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/raw_data/verde_privato_urbanizzato.geojson','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
     
-    aree_boschive = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/aree-boschive.gpkg','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    aree_boschive = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/raw_data/aree-boschive.gpkg','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
     
-    aree_fluviali = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/aree-fluviali.gpkg','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    aree_fluviali = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/raw_data/aree-fluviali.gpkg','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
 
-    gdf = gpd.read_file('dataset/aree_statistiche.geojson')
+    gdf = gpd.read_file('dataset/raw_data/aree_statistiche.geojson')
     gdf = gdf[gdf["area_statistica"].isin(["GIARDINI MARGHERITA"])]
     gdf.to_file("dataset/giardini_margherita.geojson", driver="GeoJSON")
 
@@ -93,21 +93,14 @@ def main():
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    #change with you path to python location
-    QgsApplication.setPrefixPath("/Applications/QGIS-LTR.app/Contents/MacOS/", True)
-    app = QgsApplication([], False)
-
-    Processing.initialize()
-    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-
     #create grid structure around Bologna's center
     #initial_grid = processing.run("native:creategrid", {'TYPE':2,'EXTENT':'11.326956986,11.358076793,44.484437335,44.505651657 [EPSG:4326]','HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    gdf = gpd.read_file('dataset/localita_abitative.gpkg', layer="V_LAB_GPG")
+    gdf = gpd.read_file('dataset/raw_data/localita_abitative.gpkg', layer="V_LAB_GPG")
     gdf = gdf[gdf["NM_LAB"] == "BOLOGNA"]
     gdf.to_file("dataset/localita_abitative.geojson", driver="GeoJSON")
     
-    area_abitata = processing.run("native:clip", {'INPUT':'dataset/aree-statistiche.fgb','OVERLAY':'dataset/localita_abitative.geojson','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    area_abitata = processing.run("native:clip", {'INPUT':'dataset/raw_data/aree-statistiche.geojson','OVERLAY':'dataset/localita_abitative.geojson','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     #save_layer(area_abitata, 'new_loc_abit')
     
 
@@ -127,23 +120,23 @@ def main():
     ferrovia = create_ferrovia()
     save_layer(ferrovia, 'ferrovia')
 
-    '''verde = create_verde()
-    save_layer(verde, 'verde')'''
+    verde = create_verde()
+    save_layer(verde, 'verde')
 
     #compute the free space in which is possible to create new green cells
-    '''free_space = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde, 'dataset/aree-stradali.fgb', 'data_pl.fgb', ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    free_space = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde, 'dataset/raw_data/aree-stradali.geojson', 'dataset/raw_data/rifter_edif_pl.geojson.fgb', ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     free_space = processing.run("native:multiparttosingleparts", {'INPUT':free_space,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    save_layer(free_space, 'free_space')'''
+    save_layer(free_space, 'free_space')
 
     #compute how many areas each elements occupy inside the cells
-    grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':['dataset/verde.geojson', 'dataset/rifter_edif_pl.fgb', 'dataset/aree-stradali-modified.geojson', 'dataset/free_space.geojson', ferrovia],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
-    grid_with_areas = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_areas,'POINTS':'dataset/free_space.geojson','WEIGHT':'','CLASSFIELD':'','FIELD':'free_space_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':[verde, 'dataset/raw_data/rifter_edif_pl.fgb', 'dataset/processed_data/aree-stradali-modified.geojson', free_space, ferrovia],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    grid_with_areas = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_areas,'POINTS':free_space,'WEIGHT':'','CLASSFIELD':'','FIELD':'free_space_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(grid_with_areas, 'grid_with_areas')
     
     #compute the number of tree outside the green areas
-    area_not_green = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':['dataset/verde.geojson'],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    area_not_green = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(area_not_green, 'area_not_green')
-    trees_outside_green = processing.run("native:countpointsinpolygon", {'POLYGONS':area_not_green, 'POINTS':'dataset/alberi-manutenzioni.fgb','WEIGHT':'','CLASSFIELD':'','FIELD':'tree_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    trees_outside_green = processing.run("native:countpointsinpolygon", {'POLYGONS':area_not_green, 'POINTS':'dataset/raw_data/alberi-manutenzioni.fgb','WEIGHT':'','CLASSFIELD':'','FIELD':'tree_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
     #trees_outside_green = processing.run("native:joinattributestable", {'INPUT':grid_bologna,'FIELD':'id','INPUT_2':trees_outside_green,'FIELD_2':'id','FIELDS_TO_COPY':['tree_number'],'METHOD':0,'DISCARD_NONMATCHING':False,'PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     
