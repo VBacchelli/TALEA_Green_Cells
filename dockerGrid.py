@@ -2,15 +2,14 @@
 import os, sys
 import time
 import geopandas as gpd
-#change with your path to the proj.db file and gdal file
-os.environ['PROJ_LIB'] = '/Applications/QGIS-LTR.app/Contents/Resources/proj'
-os.environ['GDAL_DATA'] = '/Applications/QGIS-LTR.app/Contents/Resources/gdal'
 
-#change with you path to qgis python plugins (necessary for using processing API)
-sys.path.append('/Applications/QGIS-LTR.app/Contents/Resources/python/plugins')
-
+sys.path.append('/usr/share/qgis/python/plugins')
 from qgis.core import *
 from qgis.analysis import QgsNativeAlgorithms
+import processing
+
+from processing.core.Processing import Processing
+
 
 def save_layer(output_layer, layer_name):
 
@@ -44,8 +43,6 @@ def save_layer(output_layer, layer_name):
     else:
         print(f"Failed to save layer: {writer.errorMessage()}")
 def create_ferrovia():
-    import processing
-    from processing.core.Processing import Processing
 
     binari_ferroviari = change_coordinate_system('dataset/carta-tecnica-comunale-binari-ferroviari.geojson')
     binari_ferroviari = processing.run("native:dissolve", {'INPUT':binari_ferroviari, 'FIELD':[], 'SEPARATE_DISJOINT':False, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
@@ -58,8 +55,6 @@ def create_ferrovia():
     return ferrovia
 
 def create_verde():
-    import processing
-    from processing.core.Processing import Processing
 
     un_gest = processing.run("qgis:checkvalidity", {'INPUT_LAYER':'dataset/un_gest.fgb','METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
 
@@ -78,8 +73,6 @@ def create_verde():
     return verde
 
 def change_coordinate_system(path_to_layer):
-    import processing
-    from processing.core.Processing import Processing
 
     input_layer = QgsVectorLayer(path_to_layer)
 
@@ -103,9 +96,6 @@ def main():
     #change with you path to python location
     QgsApplication.setPrefixPath("/Applications/QGIS-LTR.app/Contents/MacOS/", True)
     app = QgsApplication([], False)
-    
-    import processing
-    from processing.core.Processing import Processing
 
     Processing.initialize()
     QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
@@ -160,5 +150,5 @@ def main():
     save_layer(trees_outside_green, 'trees_outside_green')
     
 if __name__ == "__main__":
-
+    
     main()
