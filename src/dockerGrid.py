@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.append('/usr/share/qgis/python')
 sys.path.append('/usr/share/qgis/python/plugins')
-
+os.environ['QGIS_PREFIX_PATH'] = '/usr'
 from qgis.core import *
 from qgis.analysis import QgsNativeAlgorithms
 
@@ -51,7 +51,7 @@ def create_ferrovia(raw_data_path, processed_data_path):
     binari_ferroviari = change_coordinate_system(str(raw_data_path.joinpath('carta-tecnica-comunale-binari-ferroviari.geojson')))
     binari_ferroviari = processing.run("native:dissolve", {'INPUT':binari_ferroviari, 'FIELD':[], 'SEPARATE_DISJOINT':False, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     binari_ferroviari = processing.run("native:buffer", {'INPUT':binari_ferroviari,'DISTANCE':10,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    gdf = gpd.read_file(raw_data_path.joinpath('aree_statistiche.geojson'))
+    gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
     gdf = gdf[gdf["area_statistica"].isin(["SCALO MERCI SAN DONATO", "SCALO RAVONE"])]
     gdf.to_file(processed_data_path.joinpath("ferrovia.geojson"), driver="GeoJSON")
     ferrovia = processing.run("native:union", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAY':binari_ferroviari,'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
@@ -60,15 +60,17 @@ def create_ferrovia(raw_data_path, processed_data_path):
 
 def create_verde(raw_data_path, processed_data_path):
 
-    un_gest = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('un_gest.geojson')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
-
-    verde_privato_urbanizzato = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('verde_privato_urbanizzato.geojson')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    # un_gest = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('un_gest.geojson')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    # verde_privato_urbanizzato = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('verde_privato_urbanizzato.geojson')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    # aree_boschive = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('aree-boschive.gpkg')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    # aree_fluviali = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('aree-fluviali.gpkg')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
     
-    aree_boschive = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('aree-boschive.gpkg')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
-    
-    aree_fluviali = processing.run("qgis:checkvalidity", {'INPUT_LAYER':str(raw_data_path.joinpath('aree-fluviali.gpkg')),'METHOD':1,'IGNORE_RING_SELF_INTERSECTION':False,'VALID_OUTPUT':'TEMPORARY_OUTPUT','INVALID_OUTPUT':'TEMPORARY_OUTPUT','ERROR_OUTPUT':'TEMPORARY_OUTPUT'})['VALID_OUTPUT']
+    un_gest = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('un_gest.geojson')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+    verde_privato_urbanizzato = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('verde_privato_urbanizzato.geojson')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_boschive = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('aree-boschive.gpkg')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_fluviali = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('aree-fluviali.gpkg')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    gdf = gpd.read_file(raw_data_path.joinpath('aree_statistiche.geojson'))
+    gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
     gdf = gdf[gdf["area_statistica"].isin(["GIARDINI MARGHERITA"])]
     gdf.to_file(processed_data_path.joinpath("giardini_margherita.geojson"), driver="GeoJSON")
 
@@ -137,10 +139,10 @@ def main(bologna_size = 'full'):
     #save_layer(grid_bologna, 'new_grid_bologna', PROCESSED_DATA_GRID)
     
     ferrovia = create_ferrovia(RAW_DATA, PROCESSED_DATA)
-    save_layer(ferrovia, 'ferrovia', PROCESSED_DATA_GRID)
+    #save_layer(ferrovia, 'ferrovia', PROCESSED_DATA_GRID)
 
     verde = create_verde(RAW_DATA, PROCESSED_DATA)
-    save_layer(verde, 'verde', PROCESSED_DATA_GRID)
+    #save_layer(verde, 'verde', PROCESSED_DATA_GRID)
 
     #compute the free space in which is possible to create new green cells
     free_space = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde, str(RAW_DATA.joinpath('aree-stradali.geojson')), str(RAW_DATA.joinpath('rifter_edif_pl.geojson')), ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']

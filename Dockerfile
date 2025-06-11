@@ -1,5 +1,4 @@
 FROM qgis/qgis
-
 # Set environment variables for QGIS
 ENV QGIS_PREFIX_PATH=/usr
 ENV QT_QPA_PLATFORM=offscreen
