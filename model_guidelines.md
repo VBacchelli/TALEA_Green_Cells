@@ -1,5 +1,11 @@
-# Web map Bologna
-- leaflet
+# Aggiornamento 11-06
+- Check docker
+- Aggiornare i nomi delle features (json utili: final_grid, processed/aree_statistiche)
+- Testare il modello su bologna full
+- Check cambio di parametri
+- Uniformare nomenclatura risultati, trovare un format da seguire
+- Creare documentazione
+- Finire Web GUI (leaflet) / Fare Powerpoint
 
 # Aggiornamento 07-05
 - parametrizzare e documentare al massimo il modello;
