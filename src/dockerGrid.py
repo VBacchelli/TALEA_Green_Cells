@@ -7,6 +7,12 @@ from pathlib import Path
 sys.path.append('/usr/share/qgis/python')
 sys.path.append('/usr/share/qgis/python/plugins')
 os.environ['QGIS_PREFIX_PATH'] = '/usr'
+
+os.environ['PYTHONPATH'] = '/usr/share/qgis/python'
+# Optional (if you suspect GDAL/PROJ issues)
+os.environ['PROJ_LIB'] = '/usr/share/proj'
+os.environ['GDAL_DATA'] = '/usr/share/gdal'
+
 from qgis.core import *
 from qgis.analysis import QgsNativeAlgorithms
 
@@ -96,8 +102,8 @@ def change_coordinate_system(path_to_layer):
 
 def main(bologna_size = 'full'):
 
-    QgsApplication.setPrefixPath("/usr", True)
     qgs = QgsApplication([], False)
+    qgs.setPrefixPath("/usr", True)
     qgs.initQgis()
 
     Processing.initialize()
@@ -127,16 +133,14 @@ def main(bologna_size = 'full'):
 
     grid_bologna = processing.run("native:creategrid", {'TYPE':2,'EXTENT':area_abitata,'HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     grid_bologna = processing.run("native:extractbylocation", {'INPUT':grid_bologna,'PREDICATE':[0],'INTERSECT':area_abitata,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    save_layer(grid_bologna, 'grid_bologna', PROCESSED_DATA_GRID) #11.229655388,11.433714394,44.421110029,44.556205390 [EPSG:4326]
+    #save_layer(grid_bologna, 'grid_bologna', PROCESSED_DATA_GRID) #11.229655388,11.433714394,44.421110029,44.556205390 [EPSG:4326]
     
 
     #compute the area of each area_statistica for each grid in bologna 
     aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':aree_statistiche,'FIELD_NAME':'intersect_area_statistica','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'area($geometry)','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    #save_layer(aree_statistiche, 'aree_statistiche', PROCESSED_DATA_GRID)
-    
-    #grid_bologna = processing.run("native:joinattributestable", {'INPUT':grid_bologna,'FIELD':'id','INPUT_2':aree_statistiche,'FIELD_2':'id','FIELDS_TO_COPY':['area_statistica, intersect_area_statistica'],'METHOD':0,'DISCARD_NONMATCHING':False,'PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    #save_layer(grid_bologna, 'new_grid_bologna', PROCESSED_DATA_GRID)
+    aree_statistiche = processing.run("native:calculatevectoroverlaps", {'INPUT':aree_statistiche,'LAYERS':[verde],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    save_layer(aree_statistiche, 'aree_statistiche', PROCESSED_DATA_GRID)
     
     ferrovia = create_ferrovia(RAW_DATA, PROCESSED_DATA)
     #save_layer(ferrovia, 'ferrovia', PROCESSED_DATA_GRID)
@@ -147,7 +151,7 @@ def main(bologna_size = 'full'):
     #compute the free space in which is possible to create new green cells
     free_space = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde, str(RAW_DATA.joinpath('aree-stradali.geojson')), str(RAW_DATA.joinpath('rifter_edif_pl.geojson')), ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     free_space = processing.run("native:multiparttosingleparts", {'INPUT':free_space,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    save_layer(free_space, 'free_space', PROCESSED_DATA_GRID)
+    #save_layer(free_space, 'free_space', PROCESSED_DATA_GRID)
 
     #compute how many areas each elements occupy inside the cells
     grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':[verde, str(RAW_DATA.joinpath('rifter_edif_pl.geojson')), str(PROCESSED_DATA.joinpath("aree-stradali-modified.geojson")), free_space, ferrovia],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
@@ -156,12 +160,27 @@ def main(bologna_size = 'full'):
     
     #compute the number of tree outside the green areas
     area_not_green = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    save_layer(area_not_green, 'area_not_green', PROCESSED_DATA_GRID)
+    #save_layer(area_not_green, 'area_not_green', PROCESSED_DATA_GRID)
     trees_outside_green = processing.run("native:countpointsinpolygon", {'POLYGONS':area_not_green, 'POINTS':str(RAW_DATA.joinpath('alberi-manutenzioni.fgb')),'WEIGHT':'','CLASSFIELD':'','FIELD':'tree_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-
-    #trees_outside_green = processing.run("native:joinattributestable", {'INPUT':grid_bologna,'FIELD':'id','INPUT_2':trees_outside_green,'FIELD_2':'id','FIELDS_TO_COPY':['tree_number'],'METHOD':0,'DISCARD_NONMATCHING':False,'PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    
     save_layer(trees_outside_green, 'trees_outside_green', PROCESSED_DATA_GRID)
+
+    grid = gpd.read_file(PROCESSED_DATA_GRID.joinpath('grid_with_areas.geojson'))
+    trees = gpd.read_file(PROCESSED_DATA_GRID.joinpath('trees_outside_green.geojson'))[['id', 'tree_number']]
+
+    final_grid = grid.merge(trees, how= 'outer', on = 'id').fillna(0)
+    final_grid = final_grid.rename(columns={
+        'Single parts_area': 'free_space_area',
+        'Single parts_pc': 'free_space_pc',
+        'Dissolved_area': 'railways_area',
+        'Dissolved_pc': 'railways_pc',
+        'Union_area': 'green_area',
+        'Union_pc': 'green_pc',
+        'rifter_edif_pl_area': 'buildings_area',
+        'rifter_edif_pl_pc': 'buildings_pc',
+        'aree-stradali-modified_area': 'road_area',
+        'aree-stradali-modified_pc': 'road_pc',
+    })
+    final_grid.to_file(PROCESSED_DATA_GRID.joinpath("final_grid.geojson"), driver="GeoJSON")
     
 if __name__ == "__main__":
     
