@@ -42,7 +42,7 @@ def solve(size):
 
     if not RESULTS_DIR_PATH.exists():
         RESULTS_DIR_PATH.mkdir(parents=True)
-    gdf_result.to_file(RESULTS_DIR_PATH.joinpath("result_macro_19_20.geojson"), driver='GeoJSON')
+    gdf_result.to_file(RESULTS_DIR_PATH.joinpath("result_55_20.geojson"), driver='GeoJSON')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Solve the linear model for green cells placement optimization (specify again the size).")
