@@ -139,8 +139,7 @@ def main(bologna_size = 'full'):
     #compute the area of each area_statistica for each grid in bologna 
     aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':aree_statistiche,'FIELD_NAME':'intersect_area_statistica','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'area($geometry)','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    aree_statistiche = processing.run("native:calculatevectoroverlaps", {'INPUT':aree_statistiche,'LAYERS':[verde],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
-    save_layer(aree_statistiche, 'aree_statistiche', PROCESSED_DATA_GRID)
+    
     
     ferrovia = create_ferrovia(RAW_DATA, PROCESSED_DATA)
     #save_layer(ferrovia, 'ferrovia', PROCESSED_DATA_GRID)
@@ -182,6 +181,10 @@ def main(bologna_size = 'full'):
     })
     final_grid.to_file(PROCESSED_DATA_GRID.joinpath("final_grid.geojson"), driver="GeoJSON")
     
+    aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':str(RAW_DATA.joinpath('aree-statistiche.geojson')),'FIELD_NAME':'area','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_statistiche = processing.run("native:calculatevectoroverlaps", {'INPUT':aree_statistiche,'LAYERS':[verde],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    save_layer(aree_statistiche, 'aree_statistiche', PROCESSED_DATA_GRID)
+
 if __name__ == "__main__":
     
     '''directory = 'dataset'
