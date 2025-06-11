@@ -1,17 +1,25 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
+
+WORKING_DIR_PATH = Path.cwd()
+RAW_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "raw_data")
+PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
+
 
 def to_dzn(instance):
     """
     Takes the problem instance and converts it to a string in the format required by MiniZinc.
     
     Input:
-    - instance: tuple, instance in the format (num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, densities)
+    - instance: tuple, instance in the format (num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, macro_factors)
     Output:
     - text: string
 
     """
-    num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, densities = instance
+
+    num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, macro_factors = instance
 
     num_cells_str = 'len = ' + str(num_cells) + ';\n'
     top_k_str = 'top_k = ' + str(top_k) + ';\n'
@@ -22,7 +30,7 @@ def to_dzn(instance):
     green_space_str = 'green_space = [ '
     num_areas_str = 'num_areas = [ '
     num_trees_str = 'num_trees = [ '
-    densities_str = 'densities = [ '
+    macro_factors_str = 'macro_factors = [ '
     for i in range(num_cells):
         if i == num_cells - 1:
             street_space_str += str(street_space[i]) + ' ];\n'
@@ -30,16 +38,16 @@ def to_dzn(instance):
             green_space_str += str(green_space[i]) + ' ];\n'
             num_areas_str += str(num_areas[i]) + ' ];\n'
             num_trees_str += str(num_trees[i]) + ' ];\n'
-            densities_str += str(densities[i]) + ' ];\n'
+            macro_factors_str += str(macro_factors[i]) + ' ];\n'
         else:
             street_space_str += str(street_space[i]) + ', '
             ext_space_str += str(ext_space[i]) + ', '
             green_space_str += str(green_space[i]) + ', '
             num_areas_str += str(num_areas[i]) + ', '
             num_trees_str += str(num_trees[i]) + ', '
-            densities_str += str(densities[i]) + ', '
+            macro_factors_str += str(macro_factors[i]) + ', '
 
-    text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + densities_str
+    text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str
     return text
 
 def density_per_area(gdf_area, df_dens):
@@ -53,8 +61,8 @@ def density_per_area(gdf_area, df_dens):
     - out: numpy array, density of the population in each cell of the grid
 
     """
+
     num_cells = np.max(gdf_area['id'])
-    out = np.zeros((num_cells, ), dtype=float)
     df_out = pd.DataFrame(columns=['id', 'density'])
     for i in range(num_cells):
         temp_df = gdf_area.loc[gdf_area['id'] == i+1]
@@ -64,6 +72,22 @@ def density_per_area(gdf_area, df_dens):
             temp_dens = df_dens[df_dens['Codice Area Statistica'] == code]
             density = float(temp_dens['Densità'].values[0])
             temp_sum += density * row['intersect_area']
+        df_out.loc[len(df_out)] = [i+1, temp_sum / 10000]
+    return df_out
+
+def macro_factor_per_area(gdf_area, gdf_macro):
+    """
+    Computes the macro utility factor for each area based on the statistic area occupancy.
+    
+    """
+
+    num_cells = np.max(gdf_area['id'])
+    out = np.zeros((num_cells, ), dtype=float)
+    for i in range(num_cells):
+        temp_df = gdf_area.loc[gdf_area['id'] == i+1]
+        temp_sum = 0
+        for row in temp_df.itertuples():
+            temp_factor = gdf_macro[gdf_macro['codice_area_statistica'] == row.codice_area_statistica]['macro_utility_factor'].values[0]
+            temp_sum += temp_factor * row.intersect_area
         out[i] = temp_sum / 10000
-        df_out.loc[len(df_out)] = [i+1, out[i]]
-    return out, df_out
+    return out

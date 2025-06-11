@@ -3,19 +3,20 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from pathlib import Path
+import argparse
 
-def solve():
 
-    WORKING_DIR_PATH = Path.cwd()
-    RESULTS_DIR_PATH = WORKING_DIR_PATH.joinpath("results")
+WORKING_DIR_PATH = Path.cwd()
+PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
+CENTER_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
+FULL_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
+MINIZINC_DIR_PATH = WORKING_DIR_PATH.joinpath("src", "Minizinc")
+RESULTS_DIR_PATH = WORKING_DIR_PATH.joinpath("results")
+INSTANCE_PATH = MINIZINC_DIR_PATH.joinpath("instance_lin.dzn")
+MODEL_PATH = MINIZINC_DIR_PATH.joinpath("linear_model.mzn")
 
-    # Matrix version
-    # INSTANCE_PATH = WORKING_DIR_PATH.joinpath("src", "Minizinc", "instance.dzn")
-    # MODEL_PATH = WORKING_DIR_PATH.joinpath("src", "Minizinc", "sec_model.mzn")
 
-    # Linear version
-    INSTANCE_PATH = WORKING_DIR_PATH.joinpath("src", "Minizinc", "instance_lin.dzn")
-    MODEL_PATH = WORKING_DIR_PATH.joinpath("src", "Minizinc", "linear_model.mzn")
+def solve(size):
 
     model = Model(MODEL_PATH)
     solver = Solver.lookup('highs')
@@ -29,12 +30,26 @@ def solve():
     for i in range(len(street_cells)):
         df_result.loc[len(df_result)] = {'id': i+1, 'street_cells': street_cells[i], 'yard_cells': yard_cells[i]}
 
-    gdf_data = gpd.read_file("dataset/grid_with_areas.geojson")
+    if size == "center":
+        PATH = CENTER_GRID_DIR_PATH
+    elif size == "full":
+        PATH = FULL_GRID_DIR_PATH
+    gdf_data = gpd.read_file(PATH.joinpath("grid_with_areas.geojson"))
     gdf_result = gpd.GeoDataFrame(df_result, geometry=gdf_data.geometry, crs='EPSG:3857')
     gdf_result['num_areas'] = gdf_data['NUMPOINTS']
     gdf_result = gdf_result[gdf_result['street_cells'] != 0.0]
     gdf_result = gdf_result[gdf_result['yard_cells'] != 0.0]
-    gdf_result.to_file(RESULTS_DIR_PATH.joinpath("result_trees.geojson"), driver='GeoJSON')
+
+    if not RESULTS_DIR_PATH.exists():
+        RESULTS_DIR_PATH.mkdir(parents=True)
+    gdf_result.to_file(RESULTS_DIR_PATH.joinpath("result_macro_19_20.geojson"), driver='GeoJSON')
 
 if __name__ == "__main__":
-    solve()
+    parser = argparse.ArgumentParser(description="Solve the linear model for green cells placement optimization (specify again the size).")
+    parser.add_argument("--size",
+                        type=str,
+                        default="center",
+                        choices=["center", "full"],
+                        help="Whether to run the model on the city center or on the entire cityscape.")
+    args = parser.parse_args()
+    solve(args.size)

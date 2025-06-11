@@ -10,11 +10,10 @@ array[1..len] of float: ext_space;
 array[1..len] of float: green_space;
 array[1..len] of float: num_areas;
 array[1..len] of float: num_trees;
-array[1..len] of float: densities;
+array[1..len] of float: macro_factors;
 
 float: max_street = beta_streets * max(street_space);
 float: max_yard = max(ext_space);
-float: max_densities = max(densities);
 float: max_areas = max(num_areas);
 float: max_trees = max(num_trees);
 float: max_green = max(green_space);
@@ -27,9 +26,9 @@ array[1..len] of var float: utility;
 % ----- Constraints ----- %
 constraint forall(i in 1..len)(
 	if num_areas[i] == 0.0 then
-		utility[i] = (alpha_yard * (yard_cells[i] / max_yard) + (street_cells[i] / max_street)) * (densities[i] / max_densities) / ((green_space[i] / max_green) * (num_trees[i] / max_trees))
+		utility[i] = macro_factors[i] * (alpha_yard * (yard_cells[i] / max_yard) + (street_cells[i] / max_street)) / ((green_space[i] / max_green) * (num_trees[i] / max_trees))
 	else
-		utility[i] = (((alpha_yard * (yard_cells[i] / max_yard)) + (street_cells[i] / max_street)) / (num_areas[i] / max_areas)) * (densities[i] / max_densities) / ((green_space[i] / max_green) * (num_trees[i] / max_trees))
+		utility[i] = macro_factors[i] * (((alpha_yard * (yard_cells[i] / max_yard)) + (street_cells[i] / max_street)) / (num_areas[i] / max_areas)) / ((green_space[i] / max_green) * (num_trees[i] / max_trees))
 	endif
 );
 
