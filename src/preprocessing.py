@@ -9,19 +9,6 @@ RAW_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "raw_data")
 PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
 
 
-def squares_elimination():
-    """
-    Deletion of the squares from the street data.
-    
-    """
-
-    gdf_streets = gpd.read_file(RAW_DATA_DIR_PATH.joinpath("aree-stradali.geojson"))
-    gdf_streets_1 = gdf_streets[gdf_streets['descrizion'] != 'Tronco di intersezione tra strade a raso']
-    gdf_streets_2 = gdf_streets[gdf_streets['descrizion'] == 'Tronco di intersezione tra strade a raso']
-    gdf_streets_2 = gdf_streets_2[gdf_streets_2['area_ogg'] <= 1500]
-    gdf_streets = pd.concat([gdf_streets_1, gdf_streets_2], axis=0)
-    gdf_streets.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson"), driver='GeoJSON')
-
 def density_estimation():
     """
     Enlarges the dataset of the population per statistical area with the relative density.
@@ -75,5 +62,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     density_estimation()
-    squares_elimination()
     macro_factors_computation(args.density_param, args.green_param)
