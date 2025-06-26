@@ -23,8 +23,6 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     - top_k_param: int, maximum number of cells that can be placed
     - streets_param: float, weight for the available street space
     - yard_param: float, weight for the available yard space
-    - density_param: float, weight for the population density in the macro utility function
-    - green_param: float, weight for the green space in the macro utility function
 
     """
     # Set the data directory based on the size parameter
@@ -34,20 +32,12 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
         PATH = FULL_GRID_DIR_PATH
     
     # Load the data
-    gdf_tot = gpd.read_file(PATH.joinpath("grid_with_areas.geojson"))
+    gdf_tot = gpd.read_file(PATH.joinpath("final_grid.geojson"))
     gdf_tot.set_index("id", inplace=True)
-    gdf_strade = gpd.read_file(PATH.joinpath("strada_no_piazze.geojson"))
-    gdf_strade.set_index("id", inplace=True)
-    gdf_trees = gpd.read_file(PATH.joinpath("trees_outside_green.geojson"))
-    gdf_trees.set_index("id", inplace=True)
     gdf_aree = gpd.read_file(PATH.joinpath("aree_statistiche_grid.geojson"))
     df_pop = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=';')
     gdf_macro = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro_factors.geojson"))
-    num_cells = np.max(gdf_tot.index)
-
-    ### TEMPORARY
-    gdf_tot['aree-stradali_area'] = gdf_strade['aree-stradali-modified_area']
-    gdf_tot = pd.merge(gdf_tot, gdf_trees['trees count'], how='outer', left_index=True, right_index=True).fillna(0.0)
+    num_cells = gdf_tot.index.shape[0]
 
     # Macro scale computations
     macro_factors = utils.macro_factor_per_area(gdf_aree, gdf_macro)
@@ -64,13 +54,14 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     ext_space = np.zeros((num_cells, ), dtype=float)
     num_areas = np.zeros((num_cells, ), dtype=float)     # number of external areas in each cell
     num_trees = np.zeros((num_cells, ), dtype=float)     # number of trees in each cell
-    for idx, row in gdf_tot.iterrows():
-        green_space[idx - 1] = row['un_gest_area'] + row['verde_privato_urbanizzato_area'] + row['colli_area'] + 1
-        green_space[idx - 1] = 10000.0 if green_space[idx - 1] > 10000.0 else green_space[idx - 1]
-        street_space[idx - 1] = row['aree-stradali_area']
-        ext_space[idx - 1] = row['Single parts_area']
-        num_areas[idx - 1] = float(row['NUMPOINTS']) + 1 if street_space[idx - 1] > 0 else float(row['NUMPOINTS'])
-        num_trees[idx - 1] = float(row['trees count']) + 1
+    for idx, cell_id in enumerate(gdf_tot.index):
+        row = gdf_tot.loc[cell_id]
+        green_space[idx] = row['green_area'] + 1
+        green_space[idx] = 10000.0 if green_space[idx] > 10000.0 else green_space[idx]
+        street_space[idx] = row['road_area']
+        ext_space[idx] = row['free_space_area']
+        num_areas[idx] = float(row['free_space_number']) + 1 if street_space[idx] > 0 else float(row['free_space_number'])
+        num_trees[idx] = float(row['tree_number']) + 1
         
     instance = (num_cells, 
                 top_k_param, 
@@ -89,7 +80,7 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     
     # File creation
     output_text = utils.to_dzn(instance)
-    INSTANCE_PATH = OUTPUT_DIR_PATH.joinpath("instance_lin.dzn")
+    INSTANCE_PATH = OUTPUT_DIR_PATH.joinpath("instance.dzn")
     with open(INSTANCE_PATH, "w") as output_file:
        output_file.write(output_text)
 
@@ -106,7 +97,7 @@ if __name__ == "__main__":
                         help="Whether to run the model on the city center or on the entire cityscape.")
     parser.add_argument("--max_cells", 
                         type=int, 
-                        default=50, 
+                        default=20, 
                         help="Maximum number of cells that can be placed.")
     parser.add_argument("--streets_param", 
                         type=float, 

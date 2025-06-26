@@ -3,6 +3,7 @@ import os, sys
 import geopandas as gpd
 from pathlib import Path
 import pandas as pd
+import argparse
 
 sys.path.append('/usr/share/qgis/python')
 sys.path.append('/usr/share/qgis/python/plugins')
@@ -182,7 +183,7 @@ def main(bologna_size = 'full'):
     #compute the area of each area_statistica for each grid in bologna 
     aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':aree_statistiche,'FIELD_NAME':'intersect_area_statistica','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'area($geometry)','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    save_layer(aree_statistiche, 'area_statistica_grid', PROCESSED_DATA_GRID)
+    save_layer(aree_statistiche, 'aree_statistiche_grid', PROCESSED_DATA_GRID)
     
     
     ferrovia = create_ferrovia(RAW_DATA, PROCESSED_DATA)
@@ -227,7 +228,13 @@ def main(bologna_size = 'full'):
     save_layer(aree_statistiche, 'aree_statistiche', PROCESSED_DATA_GRID)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Extraction of information from data through GIS-based processing algorithms.")
+    parser.add_argument("--size", 
+                        type=str, 
+                        default="center", 
+                        choices=["center", "full"], 
+                        help="Whether to run the model on the city center or on the entire cityscape.")
+    args = parser.parse_args()
     
     squares_elimination()
-    run_on = "center"
-    main(run_on)
+    main(args.size)

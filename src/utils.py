@@ -62,32 +62,40 @@ def density_per_area(gdf_area, df_dens):
 
     """
 
-    num_cells = np.max(gdf_area['id'])
+    cells_values = gdf_area['id'].unique()
+    num_cells = len(cells_values)
     df_out = pd.DataFrame(columns=['id', 'density'])
     for i in range(num_cells):
-        temp_df = gdf_area.loc[gdf_area['id'] == i+1]
+        temp_df = gdf_area.loc[gdf_area['id'] == cells_values[i]]
         temp_sum = 0
         for _, row in temp_df.iterrows():
             code = row['codice_area_statistica']
             temp_dens = df_dens[df_dens['Codice Area Statistica'] == code]
             density = float(temp_dens['Densità'].values[0])
-            temp_sum += density * row['intersect_area']
+            temp_sum += density * row['intersect_area_statistica']
         df_out.loc[len(df_out)] = [i+1, temp_sum / 10000]
     return df_out
 
 def macro_factor_per_area(gdf_area, gdf_macro):
     """
     Computes the macro utility factor for each area based on the statistic area occupancy.
+
+    Input:
+    - gdf_area: GeoDataFrame, contains the grid data with the intersection area of the statistic areas
+    - gdf_macro: GeoDataFrame, contains the macro utility factors for each statistic area
+    Output:
+    - out: numpy array, macro utility factor for each cell of the grid
     
     """
 
-    num_cells = np.max(gdf_area['id'])
+    cells_values = gdf_area['id'].unique()
+    num_cells = len(cells_values)
     out = np.zeros((num_cells, ), dtype=float)
     for i in range(num_cells):
-        temp_df = gdf_area.loc[gdf_area['id'] == i+1]
+        temp_df = gdf_area.loc[gdf_area['id'] == cells_values[i]]
         temp_sum = 0
         for row in temp_df.itertuples():
             temp_factor = gdf_macro[gdf_macro['codice_area_statistica'] == row.codice_area_statistica]['macro_utility_factor'].values[0]
-            temp_sum += temp_factor * row.intersect_area
+            temp_sum += temp_factor * row.intersect_area_statistica
         out[i] = temp_sum / 10000
     return out
