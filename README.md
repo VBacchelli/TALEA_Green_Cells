@@ -1,5 +1,16 @@
 # DibuoReale2425
 
+## To run the model in the docker
+
+Run with default parameters (check the --help for others):
+
+```bash
+python3 src/grid_creation.py
+python3 src/preprocessing.py
+python3 src/data_parser.py
+python3 src/solver.py
+```
+
 ## Useful commands for ReadTheDocs
 Create a virtual environment
 
