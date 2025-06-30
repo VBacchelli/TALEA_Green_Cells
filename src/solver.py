@@ -47,7 +47,6 @@ def solve(size, res_name):
     gdf_result = gpd.GeoDataFrame(df_result, geometry=gdf_data.geometry, crs='EPSG:3857')
     gdf_result['id'] = gdf_data['id']
     gdf_result['num_areas'] = gdf_data['free_space_number']
-    print(gdf_result)
     gdf_result = gdf_result[gdf_result['street_cells'] != 0]
     gdf_result = gdf_result[gdf_result['yard_cells'] != 0]
 
