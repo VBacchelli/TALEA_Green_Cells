@@ -13,9 +13,9 @@ def to_dzn(instance):
     Takes the problem instance and converts it to a string in the format required by MiniZinc.
     
     Input:
-    - instance: tuple, instance in the format (num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, macro_factors)
+    - instance: tuple, components of the problem instance
     Output:
-    - text: string
+    - text: string, formatted instance in the MiniZinc format
 
     """
 
@@ -58,7 +58,7 @@ def density_per_area(gdf_area, df_dens):
     - gdf_area: GeoDataFrame, contains the grid data with the intersection area and zone names
     - df_dens: DataFrame, contains the population data for each zone
     Output:
-    - out: numpy array, density of the population in each cell of the grid
+    - df_out: DataFrame, contains the density of the population for each cell of the grid
 
     """
 
@@ -84,7 +84,7 @@ def macro_factor_per_area(gdf_area, gdf_macro):
     - gdf_area: GeoDataFrame, contains the grid data with the intersection area of the statistic areas
     - gdf_macro: GeoDataFrame, contains the macro utility factors for each statistic area
     Output:
-    - out: numpy array, macro utility factor for each cell of the grid
+    - out: numpy.ndarray, macro utility factor for each cell of the grid
     
     """
 

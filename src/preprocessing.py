@@ -31,6 +31,10 @@ def macro_factors_computation(density_param=0.5, green_param=0.5):
     """
     Estimates the factor to be applied to the macro utility function for statitistical areas.
 
+    Input:
+    - density_param: float, weight for the population density in the macro utility function (default 0.5)
+    - green_param: float, weight for the green space in the macro utility function (default 0.5)
+
     """
 
     if density_param + green_param != 1.0:
