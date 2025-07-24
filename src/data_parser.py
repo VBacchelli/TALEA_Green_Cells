@@ -12,6 +12,10 @@ PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
 CENTER_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
 FULL_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
 
+# Suppress warnings
+from warnings import filterwarnings
+filterwarnings("ignore")
+
 
 def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     """
@@ -34,9 +38,9 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     # Load the data
     gdf_tot = gpd.read_file(PATH.joinpath("final_grid.geojson"))
     gdf_tot.set_index("id", inplace=True)
-    gdf_aree = gpd.read_file(PATH.joinpath("aree_statistiche_grid.geojson"))
+    gdf_aree = gpd.read_file(PATH.joinpath("aree_statistiche_grid.geojson")).sort_values(by='id')
     df_pop = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=';')
-    gdf_macro = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro_factors.geojson"))
+    gdf_macro = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro.geojson"))
     num_cells = gdf_tot.index.shape[0]
 
     # Macro scale computations
@@ -45,10 +49,13 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     # Density estimation
     densities_df = utils.density_per_area(gdf_aree, df_pop)
     densities_df.set_index("id", inplace=True)
-    densities_df = pd.merge(densities_df, gdf_tot['geometry'], how='outer', left_index=True, right_index=True)
-    densities_gdf = gpd.GeoDataFrame(densities_df)
-    densities_gdf.to_file(PROCESSED_DATA_DIR_PATH.joinpath("densities_grid.geojson"), driver='GeoJSON')
+    densities_gdf = gpd.GeoDataFrame(densities_df, geometry=gdf_tot.geometry, crs='EPSG:3857')
+    densities_gdf.to_file(PATH.joinpath("densities_grid.geojson"), driver='GeoJSON')
 
+    # Total space computation
+    full_space = utils.full_space_per_area(gdf_aree)
+
+    # Instance creation
     green_space = np.zeros((num_cells, ), dtype=float)
     street_space = np.zeros((num_cells, ), dtype=float)
     ext_space = np.zeros((num_cells, ), dtype=float)
@@ -57,7 +64,7 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
     for idx, cell_id in enumerate(gdf_tot.index):
         row = gdf_tot.loc[cell_id]
         green_space[idx] = row['green_area'] + 1
-        green_space[idx] = 10000.0 if green_space[idx] > 10000.0 else green_space[idx]
+        green_space[idx] = full_space[idx] if green_space[idx] > full_space[idx] else green_space[idx]
         street_space[idx] = row['road_area']
         ext_space[idx] = row['free_space_area']
         num_areas[idx] = float(row['free_space_number']) + 1 if street_space[idx] > 0 else float(row['free_space_number'])
@@ -72,7 +79,8 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
                 green_space, 
                 num_areas, 
                 num_trees, 
-                macro_factors)
+                macro_factors,
+                full_space)
 
     # Create the output directory if it doesn't exist
     if not Path.exists(OUTPUT_DIR_PATH):

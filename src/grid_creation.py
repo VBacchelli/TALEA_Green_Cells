@@ -1,13 +1,8 @@
-#set as python environment the one from qgis application
 import os, sys
 import geopandas as gpd
 from pathlib import Path
 import pandas as pd
 import argparse
-from qgis.core import *
-from qgis.analysis import QgsNativeAlgorithms
-import processing
-from processing.core.Processing import Processing
 
 
 # Set up the QGIS environment
@@ -17,6 +12,12 @@ os.environ['QGIS_PREFIX_PATH'] = '/usr'
 os.environ['PYTHONPATH'] = '/usr/share/qgis/python'
 os.environ['PROJ_LIB'] = '/usr/share/proj'
 os.environ['GDAL_DATA'] = '/usr/share/gdal'
+
+
+from qgis.core import *
+from qgis.analysis import QgsNativeAlgorithms
+import processing
+from processing.core.Processing import Processing
 
 
 WORKING_DIR_PATH = Path.cwd()
@@ -110,28 +111,6 @@ def save_layer(output_layer, layer_name, path, remove_attrs="geo_point_2d"):
     else:
         print(f"Failed to save layer: {writer.errorMessage()}")
 
-def create_ferrovia(raw_data_path, processed_data_path):
-    """
-    Creation of the vector containig all the ferrovia elements unified from different datasets
-
-    Input:
-    - raw_data_path: pathlib.Path, path to the raw data directory
-    - processed_data_path: pathlib.Path, path to the processed data directory
-    Output:
-    - ferrovia: QgsVectorLayer, vector layer containing the union of all railway elements
-
-    """
-
-    binari_ferroviari = change_coordinate_system(str(raw_data_path.joinpath('carta-tecnica-comunale-binari-ferroviari.geojson')))
-    binari_ferroviari = processing.run("native:dissolve", {'INPUT':binari_ferroviari, 'FIELD':[], 'SEPARATE_DISJOINT':False, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    binari_ferroviari = processing.run("native:buffer", {'INPUT':binari_ferroviari,'DISTANCE':10,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
-    gdf = gdf[gdf["area_statistica"].isin(["SCALO MERCI SAN DONATO", "SCALO RAVONE"])]
-    gdf.to_file(processed_data_path.joinpath("ferrovia.geojson"), driver="GeoJSON")
-    ferrovia = processing.run("native:union", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAY':binari_ferroviari,'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
-    ferrovia = processing.run("native:dissolve", {'INPUT': ferrovia,'FIELD':[],'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    return ferrovia
-
 def create_verde(raw_data_path, processed_data_path):
     """
     Creation of the vector containig all the green elements unified from different datasets
@@ -143,44 +122,56 @@ def create_verde(raw_data_path, processed_data_path):
     - verde: QgsVectorLayer, vector layer containing the union of all green elements
 
     """
+    
+    un_gest = processing.run("native:fixgeometries", {'INPUT':str(raw_data_path.joinpath('un_gest.fgb')), 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    null_values = processing.run("native:extractbyattribute", {'INPUT':un_gest,'FIELD':'area_prato','OPERATOR':8,'VALUE':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    to_delete = processing.run("native:extractbyattribute", {'INPUT':null_values,'FIELD':'nome','OPERATOR':0,'VALUE':'AIUOLE ALBERTO MANZI','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    un_gest = processing.run("native:difference", {'INPUT':un_gest,'OVERLAY':to_delete,'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    verde_privato_urbanizzato = processing.run("native:fixgeometries", {'INPUT':str(raw_data_path.joinpath('verde_privato_urbanizzato.fgb')), 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    un_gest = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('un_gest.geojson')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
-    verde_privato_urbanizzato = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('verde_privato_urbanizzato.geojson')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
-    aree_boschive = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('aree-boschive.gpkg')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
-    aree_fluviali = processing.run("native:fixgeometries", {'INPUT': str(raw_data_path.joinpath('aree-fluviali.gpkg')), 'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_boschive_1 = QgsVectorLayer(str(raw_data_path.joinpath('aree-boschive.gpkg')) + "|layername=V_AAI_GPG", 'aree_boschive_1', 'ogr')
+    aree_boschive_1 = processing.run("native:fixgeometries", {'INPUT':aree_boschive_1, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_boschive_2 = QgsVectorLayer(str(raw_data_path.joinpath('aree-boschive.gpkg')) + "|layername=V_PSR_GPG", 'aree_boschive_2', 'ogr')
+    aree_boschive_2 = processing.run("native:fixgeometries", {'INPUT':aree_boschive_2, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_boschive_3 = QgsVectorLayer(str(raw_data_path.joinpath('aree-boschive.gpkg')) + "|layername=V_BSC_GPG", 'aree_boschive_3', 'ogr')
+    aree_boschive_3 = processing.run("native:fixgeometries", {'INPUT':aree_boschive_3, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_fluviali = QgsVectorLayer(str(raw_data_path.joinpath('aree-fluviali.gpkg')) + "|layername=V_ABA_GPG", 'aree_fluviali', 'ogr')
+    aree_fluviali = processing.run("native:fixgeometries", {'INPUT':aree_fluviali, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
     gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
     gdf = gdf[gdf["area_statistica"].isin(["GIARDINI MARGHERITA"])]
     gdf.to_file(processed_data_path.joinpath("giardini_margherita.geojson"), driver="GeoJSON")
 
-    verde = processing.run("native:multiunion", {'INPUT':un_gest,'OVERLAYS':[str(processed_data_path.joinpath("giardini_margherita.geojson")), verde_privato_urbanizzato, aree_boschive, aree_fluviali],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    
+    verde = processing.run("native:multiunion", {'INPUT':un_gest,'OVERLAYS':[str(processed_data_path.joinpath('giardini_margherita.geojson')), verde_privato_urbanizzato, aree_boschive_1, aree_boschive_2, aree_boschive_3, aree_fluviali],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    verde = processing.run("native:fixgeometries", {'INPUT':verde, 'OUTPUT':str(PROCESSED_DATA_DIR_PATH.joinpath('verde.gpkg'))})['OUTPUT']
+    print(f"Layer saved to: {str(PROCESSED_DATA_DIR_PATH.joinpath('verde.gpkg'))}")
     return verde
 
-def change_coordinate_system(path_to_layer):
+def create_ferrovia(raw_data_path, processed_data_path):
     """
-    Change the coordinate system of a vector layer to EPSG:3857 (Web Mercator).
+    Creation of the vector containig all the ferrovia elements unified from different datasets
 
     Input:
-    - path_to_layer: str, path to the layer file
+    - raw_data_path: pathlib.Path, path to the raw data directory
+    - processed_data_path: pathlib.Path, path to the processed data directory
     Output:
-    - QgsVectorLayer, the reprojected vector layer
-    
+    - ferrovia: QgsVectorLayer, vector layer containing the union of all railway elements
+
     """
+    
+    binari_ferroviari = processing.run("native:reprojectlayer", {'INPUT':str(raw_data_path.joinpath('carta-tecnica-comunale-binari-ferroviari.fgb')),'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    binari_ferroviari = processing.run("native:buffer", {'INPUT':binari_ferroviari,'DISTANCE':15,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':True,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    input_layer = QgsVectorLayer(path_to_layer)
+    gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
+    gdf = gdf[gdf["area_statistica"].isin(["SCALO MERCI SAN DONATO", "SCALO RAVONE"])]
+    gdf.to_file(processed_data_path.joinpath("ferrovia.geojson"), driver="GeoJSON")
 
-    # Define the target CRS (EPSG:3857)
-    target_crs = QgsCoordinateReferenceSystem("EPSG:3857")
-
-    # Reproject using the 'reprojectlayer' processing algorithm
-    params = {
-        'INPUT': input_layer,
-        'TARGET_CRS': target_crs,
-        'OUTPUT': 'memory:'  # or use a file path like 'reprojected_layer.geojson'
-    }
-
-    return processing.run("native:reprojectlayer", params)['OUTPUT']
+    ferrovia = processing.run("native:union", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAY':binari_ferroviari,'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    ferrovia = processing.run("native:dissolve", {'INPUT': ferrovia,'FIELD':[],'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    ferrovia = processing.run("native:reprojectlayer", {'INPUT':ferrovia,'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    ferrovia = processing.run("native:deleteholes", {'INPUT':ferrovia,'MIN_AREA':10000,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    ferrovia = processing.run("native:multidifference", {'INPUT':ferrovia,'OVERLAYS':[str(raw_data_path.joinpath('rifter_edif_pl.geojson')), str(processed_data_path.joinpath('verde.gpkg'))],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    return ferrovia
 
 def main(bologna_size):
     """
@@ -206,6 +197,17 @@ def main(bologna_size):
         loc_abitativa.to_file(PROCESSED_DATA_DIR_PATH.joinpath('localita_abitative.geojson'), driver="GeoJSON")
         
         area_abitata = processing.run("native:clip", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('localita_abitative.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+        save_layer(area_abitata, 'area_abitata_full', PROCESSED_DATA_DIR_PATH)
+        area_abitata = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'))
+        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO"])]
+        area_abitata.to_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'), driver="GeoJSON")
+
+        # Create the grid for the entire city
+        grid_bologna = processing.run("native:creategrid", {'TYPE':2,'EXTENT':str(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson')),'HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+        grid_bologna = processing.run("native:clip", {'INPUT':grid_bologna,'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+        #grid_bologna = processing.run("native:fixgeometries", {'INPUT':grid_bologna, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+
+        aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson')),'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     
     else:
         GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
@@ -216,46 +218,53 @@ def main(bologna_size):
 
         area_abitata = processing.run("native:clip", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('localita_abitative.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    grid_bologna = processing.run("native:creategrid", {'TYPE':2,'EXTENT':area_abitata,'HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    grid_bologna = processing.run("native:extractbylocation", {'INPUT':grid_bologna,'PREDICATE':[0],'INTERSECT':area_abitata,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    
+        # Create the grid for the city center
+        grid_bologna = processing.run("native:creategrid", {'TYPE':2,'EXTENT':area_abitata,'HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+        grid_bologna = processing.run("native:clip", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+        #grid_bologna = processing.run("native:fixgeometries", {'INPUT':grid_bologna, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    #compute the area of each area_statistica for each grid in bologna 
-    aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+        aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+
+    # Compute the area of each area_statistica for each grid in bologna 
     aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':aree_statistiche,'FIELD_NAME':'intersect_area_statistica','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'area($geometry)','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(aree_statistiche, 'aree_statistiche_grid', GRID_DIR_PATH)
-    
-    
-    ferrovia = create_ferrovia(RAW_DATA_DIR_PATH, PROCESSED_DATA_DIR_PATH)
 
+    # Create the green vector layer
     verde = create_verde(RAW_DATA_DIR_PATH, PROCESSED_DATA_DIR_PATH)
 
-    #compute the free space in which is possible to create new green cells
+    # Create the railway vector layer
+    ferrovia = create_ferrovia(RAW_DATA_DIR_PATH, PROCESSED_DATA_DIR_PATH)
+    save_layer(ferrovia, 'ferrovia', PROCESSED_DATA_DIR_PATH)
+
+    # Clean the street data
+    strade_clean = processing.run("native:multidifference", {'INPUT':str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")),'OVERLAYS':[verde, ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(strade_clean, 'aree-stradali-modified', PROCESSED_DATA_DIR_PATH)
+
+    # Compute the free space in which is possible to create new green cells
     free_space = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde, str(RAW_DATA_DIR_PATH.joinpath('aree-stradali.geojson')), str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     free_space = processing.run("native:multiparttosingleparts", {'INPUT':free_space,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
-    #compute how many areas each elements occupy inside the cells
+    # Compute how many areas each elements occupy inside the cells
     grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':[verde, str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")), free_space, ferrovia],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     grid_with_areas = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_areas,'POINTS':free_space,'WEIGHT':'','CLASSFIELD':'','FIELD':'free_space_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(grid_with_areas, 'grid_with_areas', GRID_DIR_PATH)
-    
-    #compute the number of tree outside the green areas
-    area_not_green = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+
+    # Compute the number of tree outside the green areas
+    area_not_green = processing.run("native:difference", {'INPUT':grid_bologna,'OVERLAY':verde,'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     trees_outside_green = processing.run("native:countpointsinpolygon", {'POLYGONS':area_not_green, 'POINTS':str(RAW_DATA_DIR_PATH.joinpath('alberi-manutenzioni.fgb')),'WEIGHT':'','CLASSFIELD':'','FIELD':'tree_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(trees_outside_green, 'trees_outside_green', GRID_DIR_PATH)
 
+    # Integrate all the computed data in a single grid
     grid = gpd.read_file(GRID_DIR_PATH.joinpath('grid_with_areas.geojson'))
     trees = gpd.read_file(GRID_DIR_PATH.joinpath('trees_outside_green.geojson'))[['id', 'tree_number']]
-    
-    final_grid = grid.merge(trees, how= 'outer', on = 'id').fillna(0)
-
+    final_grid = grid.merge(trees, how='outer', on='id').fillna(0)
     final_grid = final_grid.rename(columns={
         'Single parts_area': 'free_space_area',
         'Single parts_pc': 'free_space_pc',
-        'Dissolved_area': 'railways_area',
-        'Dissolved_pc': 'railways_pc',
-        'Union_area': 'green_area',
-        'Union_pc': 'green_pc',
+        'Difference_area': 'railways_area',
+        'Difference_pc': 'railways_pc',
+        'verde_area': 'green_area',
+        'verde_pc': 'green_pc',
         'rifter_edif_pl_area': 'buildings_area',
         'rifter_edif_pl_pc': 'buildings_pc',
         'aree-stradali-modified_area': 'road_area',
@@ -263,9 +272,10 @@ def main(bologna_size):
     })
     final_grid.to_file(GRID_DIR_PATH.joinpath("final_grid.geojson"), driver="GeoJSON")
     
+    # Compute the green area in each statistical area
     aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'FIELD_NAME':'area','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     aree_statistiche = processing.run("native:calculatevectoroverlaps", {'INPUT':aree_statistiche,'LAYERS':[verde],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
-    save_layer(aree_statistiche, 'aree_statistiche', GRID_DIR_PATH)
+    save_layer(aree_statistiche, 'aree_statistiche_stat', PROCESSED_DATA_DIR_PATH)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extraction of information from data through GIS-based processing algorithms.")

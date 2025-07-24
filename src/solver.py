@@ -25,35 +25,36 @@ def solve(size, res_name):
 
     if size not in ["center", "full"]:
         raise ValueError("Invalid size parameter. Options: ['center', 'full'].")
+    else:
+        model = Model(MODEL_PATH)
+        solver = Solver.lookup('highs')
+        instance = Instance(solver, model)
+        instance.add_file(INSTANCE_PATH)
 
-    model = Model(MODEL_PATH)
-    solver = Solver.lookup('highs')
-    instance = Instance(solver, model)
-    instance.add_file(INSTANCE_PATH)
+        result = instance.solve()
+        street_cells = np.array(result.solution.street_cells)
+        yard_cells = np.array(result.solution.yard_cells)
+        df_result = pd.DataFrame(columns=['id', 'street_cells', 'yard_cells'])
+        for i in range(len(street_cells)):
+            df_result.loc[len(df_result)] = {'id': None, 'street_cells': street_cells[i], 'yard_cells': yard_cells[i]}
 
-    result = instance.solve()
-    street_cells = np.array(result.solution.street_cells)
-    yard_cells = np.array(result.solution.yard_cells)
-    df_result = pd.DataFrame(columns=['id', 'street_cells', 'yard_cells'])
-    for i in range(len(street_cells)):
-        df_result.loc[len(df_result)] = {'id': None, 'street_cells': street_cells[i], 'yard_cells': yard_cells[i]}
+        if size == "center":
+            GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
+        elif size == "full":
+            GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
+        
+        gdf_data = gpd.read_file(GRID_DIR_PATH.joinpath("final_grid.geojson"))
+        gdf_result = gpd.GeoDataFrame(df_result, geometry=gdf_data.geometry, crs='EPSG:3857')
+        gdf_result['id'] = gdf_data['id']
+        gdf_result['num_areas'] = gdf_data['free_space_number']
+        gdf_result_1 = gdf_result[gdf_result['street_cells'] != 0]
+        gdf_result_2 = gdf_result[gdf_result['yard_cells'] != 0]
+        gdf_result = pd.merge(gdf_result_1, gdf_result_2, on=gdf_result.columns.tolist(), how='outer')
 
-    if size == "center":
-        GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
-    elif size == "full":
-        GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
-    
-    gdf_data = gpd.read_file(GRID_DIR_PATH.joinpath("final_grid.geojson"))
-    gdf_result = gpd.GeoDataFrame(df_result, geometry=gdf_data.geometry, crs='EPSG:3857')
-    gdf_result['id'] = gdf_data['id']
-    gdf_result['num_areas'] = gdf_data['free_space_number']
-    gdf_result = gdf_result[gdf_result['street_cells'] != 0]
-    gdf_result = gdf_result[gdf_result['yard_cells'] != 0]
-
-    RESULTS_DIR_PATH = WORKING_DIR_PATH.joinpath("results", size)
-    if not RESULTS_DIR_PATH.exists():
-        RESULTS_DIR_PATH.mkdir(parents=True)
-    gdf_result.to_file(RESULTS_DIR_PATH.joinpath(f"{res_name}.geojson"), driver='GeoJSON')
+        RESULTS_DIR_PATH = WORKING_DIR_PATH.joinpath("results", size)
+        if not RESULTS_DIR_PATH.exists():
+            RESULTS_DIR_PATH.mkdir(parents=True)
+        gdf_result.to_file(RESULTS_DIR_PATH.joinpath(f"{res_name}_{size}.geojson"), driver='GeoJSON')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Solve the linear model for green cells placement optimization (specify again the size).")

@@ -15,7 +15,7 @@ def density_estimation():
 
     """
 
-    gdf_area = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_area.geojson"))
+    gdf_area = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_stat.geojson"))
     df_pop = pd.read_csv(RAW_DATA_DIR_PATH.joinpath("popolazione_per_area_statistica.csv"))
     df_pop = df_pop[df_pop['Codice Area Statistica'] != 99]
     densities = []
@@ -40,18 +40,18 @@ def macro_factors_computation(density_param=0.5, green_param=0.5):
     if density_param + green_param != 1.0:
         raise ValueError("The sum of density_param and green_param must be equal to 1.0.")
     else:
-        gdf_area = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_con_verde.geojson"))
+        gdf_area = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_stat.geojson"))
         df_dens = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=';')
         max_density = df_dens['Densità'].max()
         factors = []
         for row in gdf_area.itertuples():
-            green_factor = 100.0 - row.Unione_pc
+            green_factor = 100.0 - row.verde_pc
             green_factor = green_factor / 100.0
             density = df_dens[df_dens['Codice Area Statistica'] == row.codice_area_statistica]['Densità'].values[0]
             density_factor = density / max_density
             factors.append((density_param * density_factor) + (green_param * green_factor))
         gdf_area['macro_utility_factor'] = factors
-        gdf_area.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro_factors.geojson"), driver='GeoJSON')
+        gdf_area.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro.geojson"), driver='GeoJSON')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess the data in order to adapt them to the model.")

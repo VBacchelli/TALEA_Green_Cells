@@ -11,6 +11,7 @@ array[1..len] of float: green_space;
 array[1..len] of float: num_areas;
 array[1..len] of float: num_trees;
 array[1..len] of float: macro_factors;
+array[1..len] of float: full_space;
 
 float: max_street = beta_streets * max(street_space);
 float: max_yard = max(ext_space);
@@ -41,7 +42,13 @@ constraint forall(i in 1..len)(
 );
 
 constraint forall(i in 1..len)(
-	street_cells[i] + yard_cells[i] + green_space[i] <= 10000
+	street_cells[i] + yard_cells[i] + green_space[i] <= full_space[i]
+);
+
+constraint forall(i in 1..len)(
+	if ext_space[i] >= 0.5 * full_space[i] then
+		yard_cells[i] = 0.0
+	endif
 );
 
 constraint sum(i in 1..len where street_cells[i] != 0.0 \/ yard_cells[i] != 0.0)(1) <= top_k;
