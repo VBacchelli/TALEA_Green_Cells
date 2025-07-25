@@ -8,6 +8,7 @@ import argparse
 
 WORKING_DIR_PATH = Path.cwd()
 SRC_DIR_PATH = WORKING_DIR_PATH.joinpath("src")
+INSTANCE_DIR_PATH = SRC_DIR_PATH.joinpath("Minizinc")
 PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
 CENTER_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
 FULL_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
@@ -17,12 +18,11 @@ from warnings import filterwarnings
 filterwarnings("ignore")
 
 
-def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
+def parse(size, top_k_param, streets_param, yard_param):
     """
     Generates the parsed file in the Minizinc data format from the input datasets, specifying the output directory and the parameters of the algorithm.
 
     Input:
-    - OUTPUT_DIR_PATH: str, path of the output directory
     - size: str, flag to run the model on the city center or on the entire cityscape
     - top_k_param: int, maximum number of cells that can be placed
     - streets_param: float, weight for the available street space
@@ -83,21 +83,17 @@ def parse(OUTPUT_DIR_PATH, size, top_k_param, streets_param, yard_param):
                 full_space)
 
     # Create the output directory if it doesn't exist
-    if not Path.exists(OUTPUT_DIR_PATH):
-        OUTPUT_DIR_PATH.mkdir(parents=True)
+    if not Path.exists(INSTANCE_DIR_PATH):
+        INSTANCE_DIR_PATH.mkdir(parents=True)
     
     # File creation
     output_text = utils.to_dzn(instance)
-    INSTANCE_PATH = OUTPUT_DIR_PATH.joinpath("instance.dzn")
+    INSTANCE_PATH = INSTANCE_DIR_PATH.joinpath("instance.dzn")
     with open(INSTANCE_PATH, "w") as output_file:
        output_file.write(output_text)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generates the parsed file in the Minizinc data format from the input datasets, specifying the output directory and the parameters of the algorithm.")
-    parser.add_argument("--output_dir", 
-                        type=type(WORKING_DIR_PATH), 
-                        default=SRC_DIR_PATH.joinpath("Minizinc"), 
-                        help="Output directory for the parsed data.")
     parser.add_argument("--size", 
                         type=str, 
                         default="center", 
@@ -106,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_cells", 
                         type=int, 
                         default=20, 
-                        help="Maximum number of cells that can be placed.")
+                        help="Maximum number of cells to be placed.")
     parser.add_argument("--streets_param", 
                         type=float, 
                         default=0.4, 
@@ -114,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("--yard_param", 
                         type=float, 
                         default=0.8, 
-                        help="Weight for the available yard space.")
+                        help="Weight for the utility of the yard space.")
     args = parser.parse_args()
 
-    parse(args.output_dir, args.size, args.max_cells, args.streets_param, args.yard_param)
+    parse(args.size, args.max_cells, args.streets_param, args.yard_param)

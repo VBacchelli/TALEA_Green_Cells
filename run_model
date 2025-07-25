@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -e
+
+show_help() {
+    echo "Usage: run_model [OPTIONS]"
+    echo ""
+    echo "Parameters (with defaults):"
+    echo "  --size str             Map size: 'center' or 'full' (default: center)"
+    echo "  --max_cells int        Maximum number of cells to be placed (default: 20)"
+    echo "  --density_param float  Weight for the population density in the macro utility function (default: 0.5)"
+    echo "  --green_param float    Weight for the green space in the macro utility function (default: 0.5)"
+    echo "  --streets_param float  Weight for the available street space (default: 0.4)"
+    echo "  --yard_param float     Weight for the utility of the yard space (default: 0.8)"
+    echo "  --res_name str         Result name (default: result)"
+    echo ""
+    echo "Notes:"
+    echo "- All the float parameters should be in the range [0, 1]."
+    echo "- The density_param and the green_param should sum to 1."
+    echo ""
+    echo "Example:"
+    echo ">> run_pipeline --size full --max_cells 30 --density_param 0.7 --green_param 0.3 --streets_param 0.5 --yard_param 1.0 --res_name result_my_spec"
+    exit 0
+}
+
+# ============================
+# Default values
+# ============================
+SIZE="center"
+MAX_CELLS=20
+DENSITY_PARAM=0.5
+GREEN_PARAM=0.5
+STREETS_PARAM=0.4
+YARD_PARAM=0.8
+RES_NAME="result"
+
+# ============================
+# Parse parameters
+# ============================
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --size) SIZE="$2"; shift ;;
+        --max_cells) MAX_CELLS="$2"; shift ;;
+        --density_param) DENSITY_PARAM="$2"; shift ;;
+        --green_param) GREEN_PARAM="$2"; shift ;;
+        --streets_param) STREETS_PARAM="$2"; shift ;;
+        --yard_param) YARD_PARAM="$2"; shift ;;
+        --res_name) RES_NAME="$2"; shift ;;
+        --help) show_help ;;
+        *) echo "Unknown parameter: $1"; show_help ;;
+    esac
+    shift
+done
+
+# ============================
+# Run the scripts sequentially
+# ============================
+
+echo "Running preprocessing.py..."
+python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM"
+echo ""
+
+echo "Running data_parser.py..."
+python3 src/data_parser.py --size "$SIZE" --max_cells "$MAX_CELLS" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+echo ""
+
+echo "Running solver.py..."
+python3 src/solver.py --size "$SIZE" --res_name "$RES_NAME"
+echo ""
+
+echo "Pipeline completed successfully!"

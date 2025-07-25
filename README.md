@@ -2,14 +2,15 @@
 
 ## To run the model in the docker
 
-Run with default parameters (check the --help for others):
-
-```bash
-python3 src/grid_creation.py
-python3 src/preprocessing.py
-python3 src/data_parser.py
-python3 src/solver.py
-```
+There are two modalities to run the pipeline in the docker shell:
+- one for running the entire pipeline, including the grid creation step, ideal for the first run and if you want to change something in the geometry of the data ('center' or 'full')
+    ```bash
+    run_pipeline
+    ```
+- one for running only the further processing steps, including the instance creation and the solver, ideal for parameter changes
+    ```bash
+    run_model
+    ```
 
 ## Useful commands for ReadTheDocs
 Create a virtual environment
