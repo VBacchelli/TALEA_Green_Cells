@@ -1,6 +1,48 @@
-# DibuoReale2425
+# Sustainable City via Trustworthy Digital Twin: a Use Case
+In this work we examined the city of Bologna to find out the best location where to place new green areas.
+## Data
+The data has been taken both from Open Data Bologna and Geoportale regione emilia-romagna. 
+All the available data have been manipulated using the pyqgis api, which can be found in the grid_creation file and then to create a unique usable dataset. 
+The dataset is structured in by dividing the city of bologna into square grid with the followings attributes:
+- street area
+- green space area
+- yards area
+- buildings area
+- number of trees
+- population density
 
-## To run the model in the docker
+The city of Bologna can be divided into aree statistiche, the population density and green area of those has also been computed.
+## Model explanations
+
+The model objective is to find the n "best" cells where place a green cell, maximizing a utility function.
+The utility function is composed by:
+- macro_factor, which acts as a multiplicative factor to the "real" utility function. It is composed by the green space and the population density of the whole area statistica, where the actual cell is. The macro factor increases proportionally with respect to the population density and inversely with respect to the green space;
+- street_cells: streets area inside the cell, using the parameter alpha_cells we can regulate which pecentage of street we are considering during the green placement;
+- yard_cells: yard area inside the cell, using the parameter alpha_yard we can regulate which pecentage of yards we are considering during the green placement;
+- num_areas: the number of yard_cells inside a cell. The higher it is this number the more the yard area is fragmented;
+- green_space: the amount of green area already present in the cell;
+- num_trees: the number of trees in the cell.
+
+The utility of a cell increases with respect to street_cells, yard_cells and decreases with respect to num_areas, green_space and num_trees.
+
+## Usage
+
+To reproduce our results, ensure Docker is installed on your system. Once Docker is installed, to run the docker the following scripts should be executed from the terminal while in the Dockerfile directory:
+
+- To build the docker
+```
+docker build -t <docker_image_name> .
+```
+- To run the docker
+```
+docker run -it <container_name> <docker_image_name>
+```
+- To exec docker commands from your terminal
+```
+docker exec -it <container_name> /usr/bin/bash
+```
+
+### Usage rules
 
 There are two modalities to run the pipeline in the docker shell:
 - one for running the entire pipeline, including the grid creation step, ideal for the first run and if you want to change something in the geometry of the data ('center' or 'full')
@@ -11,107 +53,3 @@ There are two modalities to run the pipeline in the docker shell:
     ```bash
     run_model
     ```
-
-## Useful commands for ReadTheDocs
-Create a virtual environment
-
-Requirements:
-- `pip install sphinx`
-- `pip install sphinx_rtd_theme`
-
-Guide:
-- Create documentation with `sphinx/quickstart doc`
-- Build documentation with `sphinx-build -M html doc/source/ doc/build/` to create the HTML
-- Add your content using ``reStructuredText`` syntax. See the `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>` documentation for details.
-- Start the live server
-
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://dvcs.apice.unibo.it/pika-lab/courses/ai-ethics/projects/dibuoreale2425.git
-git branch -M master
-git push -uf origin master
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://dvcs.apice.unibo.it/pika-lab/courses/ai-ethics/projects/dibuoreale2425/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
