@@ -12,20 +12,10 @@ Welcome to the TALEA documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-
-
-
-Data Sources
-============
-
-
-
-References
-==========
+   background
+   data
+   model
+   results
+   reproducibility
+   references
+   future_work

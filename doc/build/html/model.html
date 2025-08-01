@@ -3,9 +3,10 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; TALEA  documentation</title>
+  <title>Model &mdash; TALEA  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -16,8 +17,10 @@
       <script src="_static/doctools.js?v=9a2dae69"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
-    <link rel="index" title="Index" href="#" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Results" href="results.html" />
+    <link rel="prev" title="Data" href="data.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -41,14 +44,13 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="background.html">Background</a></li>
 <li class="toctree-l1"><a class="reference internal" href="data.html">Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="model.html">Model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="results.html">Results</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reproducibility.html">Reproducibility</a></li>
 <li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
-<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future development</a></li>
 </ul>
 
         </div>
@@ -65,8 +67,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Index</li>
+      <li class="breadcrumb-item active">Model</li>
       <li class="wy-breadcrumbs-aside">
+            <a href="_sources/model.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -74,17 +77,42 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-
-<h1 id="index">Index</h1>
-
-<div class="genindex-jumpbox">
- 
-</div>
+  <section id="model">
+<h1>Model<a class="headerlink" href="#model" title="Link to this heading"></a></h1>
+<p>The model objective is to find the n “best” cells where place a green cell.
+The best n cells are chosen as those with the highest utility function.
+The utility function for the cell <img class="math" src="_images/math/3d5f4981d5f447233d0c84fbd558870fc653cc1c.png" alt="i_{th}"/> is defined as:</p>
+<div class="math">
+<p><img src="_images/math/78ce034a398ea39962a215c3a61e10976fbc7aa4.png" alt="\text{utility}_i = \text{macro\_factor}_i \times
+\frac{
+   \left( \alpha_{\text{yard}} \frac{\text{yard\_cells}_i}{\text{max\_yard}}
+   + \frac{\text{street\_cells}_i}{\text{max\_street}} \right)
+   \Big/ \frac{\text{num\_areas}_i}{\text{max\_areas}}
+}{
+   \frac{\text{green\_space}_i}{\text{max\_green}}
+   \times \frac{\text{num\_trees}_i}{\text{max\_trees}}
+}"/></p>
+</div><ul class="simple">
+<li><p>macro_factor, which acts as a multiplicative factor to the “real” utility function. It is composed by the green space and the population density of the whole “area statistica”, where the actual cell is. The macro factor increases proportionally with respect to the population density and inversely with respect to the green space. The impact of population density and green space can be regulated by density_param and green_param, which spans in a range [0, 1];</p></li>
+</ul>
+<div class="math">
+<p><img src="_images/math/e2b30bda3277db9335aee8522955aecf0d047d78.png" alt="\text{macro\_factor}_i = (density\_param * density\_factor_i) + (green\_param * green\_factor_i)"/></p>
+</div><ul class="simple">
+<li><p>street_cells: streets area inside the cell, using the parameter beta_street we can regulate which pecentage of street we are considering during the green placement;</p></li>
+<li><p>yard_cells: yard area inside the cell, using the parameter alpha_yard we can regulate which pecentage of yards we are considering during the green placement;</p></li>
+<li><p>num_areas: the number of yard_cells inside a cell. The higher it is this number the more the yard area is fragmented;</p></li>
+<li><p>green_space: the amount of green area already present in the cell;</p></li>
+<li><p>num_trees: the number of trees in the cell.</p></li>
+</ul>
+</section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="data.html" class="btn btn-neutral float-left" title="Data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="results.html" class="btn btn-neutral float-right" title="Results" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

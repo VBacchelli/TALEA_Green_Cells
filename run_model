@@ -18,7 +18,7 @@ show_help() {
     echo "- The density_param and the green_param should sum to 1."
     echo ""
     echo "Example:"
-    echo ">> run_pipeline --size full --max_cells 30 --density_param 0.7 --green_param 0.3 --streets_param 0.5 --yard_param 1.0 --res_name result_my_spec"
+    echo ">> run_model --size full --max_cells 30 --density_param 0.7 --green_param 0.3 --streets_param 0.5 --yard_param 1.0 --res_name result_my_spec"
     exit 0
 }
 

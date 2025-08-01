@@ -13,7 +13,10 @@ author = 'Simone Reale, Christian Di Buò'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    'sphinx.ext.mathjax',   # for HTML output
+    'sphinx.ext.imgmath', # optional, for generating images instead of MathJax
+]
 
 templates_path = ['_templates']
 exclude_patterns = []

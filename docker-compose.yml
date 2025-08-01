@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+  qgis-app:
+    build: .
+    container_name: ai4i
+    stdin_open: true     # same as `-i` for interactive mode
+    tty: true            # same as `-t`
+    command: bash        # start with bash, can be overridden
+    env_file: .env       # <- loads variables from the .env file

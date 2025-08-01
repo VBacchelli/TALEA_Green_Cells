@@ -42,11 +42,23 @@ docker build -t <docker_image_name> .
 ```
 - To run the docker
 ```
-docker run -it --name <container_name> <docker_image_name>
+docker run -dit --name <container_name> <docker_image_name>
 ```
 - To exec docker commands from your terminal
 ```
-docker exec -it <container_name> /usr/bin/bash
+docker exec -it <container_name> bash
+```
+## Usage updated (to try)
+If you want to use docker-compose.yml run the followings command:
+
+- To build and run the docker
+```
+docker-compose up --build -d
+```
+
+- To exec docker commands from your terminal
+```
+docker exec -it ai4i bash
 ```
 
 ### Usage rules
