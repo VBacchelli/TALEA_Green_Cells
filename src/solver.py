@@ -34,9 +34,16 @@ def solve(size, res_name):
         result = instance.solve()
         street_cells = np.array(result.solution.street_cells)
         yard_cells = np.array(result.solution.yard_cells)
-        df_result = pd.DataFrame(columns=['id', 'street_cells', 'yard_cells'])
+        utility = np.array(result.solution.utility)
+
+        df_result = pd.DataFrame(columns=['id', 'street_cells', 'yard_cells', 'utility'])
         for i in range(len(street_cells)):
-            df_result.loc[len(df_result)] = {'id': None, 'street_cells': street_cells[i], 'yard_cells': yard_cells[i]}
+            df_result.loc[len(df_result)] = {
+                'id': None,
+                'street_cells': street_cells[i],
+                'yard_cells': yard_cells[i],
+                'utility': utility[i]
+            }
 
         if size == "center":
             GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
