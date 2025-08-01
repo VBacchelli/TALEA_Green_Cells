@@ -3,17 +3,6 @@ import geopandas as gpd
 from pathlib import Path
 import pandas as pd
 import argparse
-
-
-# Set up the QGIS environment
-sys.path.append('/usr/share/qgis/python')
-sys.path.append('/usr/share/qgis/python/plugins')
-os.environ['QGIS_PREFIX_PATH'] = '/usr'
-os.environ['PYTHONPATH'] = '/usr/share/qgis/python'
-os.environ['PROJ_LIB'] = '/usr/share/proj'
-os.environ['GDAL_DATA'] = '/usr/share/gdal'
-
-
 from qgis.core import *
 from qgis.analysis import QgsNativeAlgorithms
 import processing
