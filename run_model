@@ -7,14 +7,14 @@ show_help() {
     echo "Parameters (with defaults):"
     echo "  --size str             Map size: 'center' or 'full' (default: center)"
     echo "  --max_cells int        Maximum number of cells to be placed (default: 20)"
-    echo "  --density_param float  Weight for the population density in the macro utility function (default: 0.5)"
-    echo "  --green_param float    Weight for the green space in the macro utility function (default: 0.5)"
+    echo "  --density_param float  Weight for the population density (default: 0.5)"
+    echo "  --green_param float    Weight for the green space (default: 0.5)"
     echo "  --streets_param float  Weight for the available street space (default: 0.4)"
-    echo "  --yard_param float     Weight for the utility of the yard space (default: 0.8)"
+    echo "  --yard_param float     Weight for the yard space (default: 0.8)"
     echo "  --res_name str         Result name (default: result)"
     echo ""
     echo "Notes:"
-    echo "- All the float parameters should be in the range [0, 1]."
+    echo "- All float parameters should be in the range [0, 1]."
     echo "- The density_param and the green_param should sum to 1."
     echo ""
     echo "Example:"
@@ -25,6 +25,7 @@ show_help() {
 # ============================
 # Default values
 # ============================
+
 SIZE="center"
 MAX_CELLS=20
 DENSITY_PARAM=0.5
@@ -36,6 +37,7 @@ RES_NAME="result"
 # ============================
 # Parse parameters
 # ============================
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --size) SIZE="$2"; shift ;;
@@ -50,6 +52,27 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# ============================
+# Consistency check for size matching
+# ============================
+
+echo "Checking consistency of size parameter..."
+echo ""
+PREV_SIZE=$(grep '^size:' config/config.yaml | awk '{print $2}')
+if [[ "$PREV_SIZE" != "$SIZE" ]]; then
+    echo "ERROR! The specified size '$SIZE' does not match the existing config size '$PREV_SIZE'. Please ensure that the size parameter is consistent with the existing configuration."
+    echo ""
+    exit 1
+fi
+
+# ============================
+# config.yaml update
+# ============================
+
+echo "Updating config files..."
+python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+echo ""
 
 # ============================
 # Run the scripts sequentially

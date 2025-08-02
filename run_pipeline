@@ -25,6 +25,7 @@ show_help() {
 # ============================
 # Default values
 # ============================
+
 SIZE="center"
 MAX_CELLS=20
 DENSITY_PARAM=0.5
@@ -36,6 +37,7 @@ RES_NAME="result"
 # ============================
 # Parse parameters
 # ============================
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --size) SIZE="$2"; shift ;;
@@ -50,6 +52,14 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# ============================
+# config.yaml update
+# ============================
+
+echo "Updating config files..."
+python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+echo ""
 
 # ============================
 # Run the scripts sequentially

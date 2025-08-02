@@ -27,7 +27,7 @@ docker-compose up --build -d
 
 - To exec docker commands from your terminal
 ```
-docker exec -it ai4i bash
+docker exec -it TALEA bash
 ```
 
 ### Usage rules

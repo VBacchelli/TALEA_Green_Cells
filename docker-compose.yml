@@ -1,7 +1,8 @@
 services:
   qgis-app:
     build: .
-    container_name: ai4i
+    image: TALEA/qgis-app:latest
+    container_name: TALEA
     stdin_open: true     # same as `-i` for interactive mode
     tty: true            # same as `-t`
     command: bash        # start with bash, can be overridden
