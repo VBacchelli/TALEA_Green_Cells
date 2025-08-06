@@ -105,7 +105,7 @@ if __name__ == "__main__":
                         help="Maximum number of cells to be placed.")
     parser.add_argument("--streets_param", 
                         type=float, 
-                        default=0.4, 
+                        default=0.2, 
                         help="Weight for the available street space.")
     parser.add_argument("--yard_param", 
                         type=float, 

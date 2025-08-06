@@ -13,19 +13,13 @@ WORKING_DIR_PATH = Path.cwd()
 RAW_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "raw_data")
 PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
 
+qgs = QgsApplication([], False)
+qgs.setPrefixPath("/usr", True)
+qgs.initQgis()
 
-def squares_elimination():
-    """
-    Deletion of the squares from the street data.
-    
-    """
+Processing.initialize()
+qgs.processingRegistry().addProvider(QgsNativeAlgorithms())
 
-    gdf_streets = gpd.read_file(RAW_DATA_DIR_PATH.joinpath("aree-stradali.geojson"))
-    gdf_streets_1 = gdf_streets[gdf_streets['descrizion'] != 'Tronco di intersezione tra strade a raso']
-    gdf_streets_2 = gdf_streets[gdf_streets['descrizion'] == 'Tronco di intersezione tra strade a raso']
-    gdf_streets_2 = gdf_streets_2[gdf_streets_2['area_ogg'] <= 1500]
-    gdf_streets = pd.concat([gdf_streets_1, gdf_streets_2], axis=0)
-    gdf_streets.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson"), driver='GeoJSON')
 
 def save_layer(output_layer, layer_name, path, remove_attrs="geo_point_2d"):
     """
@@ -100,6 +94,29 @@ def save_layer(output_layer, layer_name, path, remove_attrs="geo_point_2d"):
     else:
         print(f"Failed to save layer: {writer.errorMessage()}")
 
+def streets_processing():
+    """
+    Deletion of the squares and the highway from the street data.
+    
+    """
+
+    # Squares elimination
+    gdf_streets = gpd.read_file(RAW_DATA_DIR_PATH.joinpath("aree-stradali.geojson"))
+    gdf_streets_1 = gdf_streets[gdf_streets['descrizion'] != 'Tronco di intersezione tra strade a raso']
+    gdf_streets_2 = gdf_streets[gdf_streets['descrizion'] == 'Tronco di intersezione tra strade a raso']
+    gdf_streets_2 = gdf_streets_2[gdf_streets_2['area_ogg'] <= 7500]
+    gdf_streets = pd.concat([gdf_streets_1, gdf_streets_2], axis=0)
+    gdf_streets.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson"), driver='GeoJSON')
+
+    # Highway elimination
+    highway = gpd.read_file(str(RAW_DATA_DIR_PATH.joinpath('uso_suolo_bologna.geojson')))
+    highway = highway[highway['DESCR'] == 'Autostrade e superstrade']
+    highway.to_file(str(PROCESSED_DATA_DIR_PATH.joinpath('autostrada.geojson')), driver='GeoJSON')
+
+    streets = processing.run("native:difference", {'INPUT':str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")),'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('autostrada.geojson')),'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    save_layer(streets, 'aree-stradali-modified', PROCESSED_DATA_DIR_PATH)
+    return streets
+
 def create_verde(raw_data_path, processed_data_path):
     """
     Creation of the vector containig all the green elements unified from different datasets
@@ -144,23 +161,33 @@ def create_ferrovia(raw_data_path, processed_data_path):
     - raw_data_path: pathlib.Path, path to the raw data directory
     - processed_data_path: pathlib.Path, path to the processed data directory
     Output:
-    - ferrovia: QgsVectorLayer, vector layer containing the union of all railway elements
+    - railway: QgsVectorLayer, vector layer containing the union of all railway elements
 
     """
     
+    railway = gpd.read_file(str(raw_data_path.joinpath('uso_suolo_bologna.geojson')))
+    railway = railway[railway['DESCR'] == 'Reti ferroviare']
+    railway.to_file(str(processed_data_path.joinpath('ferrovia.geojson')), driver='GeoJSON')
+
+    '''
     binari_ferroviari = processing.run("native:reprojectlayer", {'INPUT':str(raw_data_path.joinpath('carta-tecnica-comunale-binari-ferroviari.fgb')),'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     binari_ferroviari = processing.run("native:buffer", {'INPUT':binari_ferroviari,'DISTANCE':15,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':True,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+
+    cigli_ferroviari = processing.run("native:reprojectlayer", {'INPUT':str(raw_data_path.joinpath('carta-tecnica-comunale-cigli-ferroviari.fgb')),'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    cigli_ferroviari = processing.run("native:buffer", {'INPUT':cigli_ferroviari,'DISTANCE':15,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':True,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
     gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
     gdf = gdf[gdf["area_statistica"].isin(["SCALO MERCI SAN DONATO", "SCALO RAVONE"])]
     gdf.to_file(processed_data_path.joinpath("ferrovia.geojson"), driver="GeoJSON")
 
-    ferrovia = processing.run("native:union", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAY':binari_ferroviari,'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    ferrovia = processing.run("native:multiunion", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAYS':[binari_ferroviari, cigli_ferroviari],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     ferrovia = processing.run("native:dissolve", {'INPUT': ferrovia,'FIELD':[],'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     ferrovia = processing.run("native:reprojectlayer", {'INPUT':ferrovia,'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     ferrovia = processing.run("native:deleteholes", {'INPUT':ferrovia,'MIN_AREA':10000,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    ferrovia = processing.run("native:multidifference", {'INPUT':ferrovia,'OVERLAYS':[str(raw_data_path.joinpath('rifter_edif_pl.geojson')), str(processed_data_path.joinpath('verde.gpkg'))],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    return ferrovia
+    '''
+
+    railway = processing.run("native:multidifference", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAYS':[str(raw_data_path.joinpath('rifter_edif_pl.geojson')), str(processed_data_path.joinpath('verde.gpkg'))],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    return railway
 
 def main(bologna_size):
     """
@@ -170,13 +197,6 @@ def main(bologna_size):
     - bologna_size: str, size of the Bologna area to process ('full' for the entire city, 'center' for the city center)
 
     """
-
-    qgs = QgsApplication([], False)
-    qgs.setPrefixPath("/usr", True)
-    qgs.initQgis()
-
-    Processing.initialize()
-    qgs.processingRegistry().addProvider(QgsNativeAlgorithms())
 
     if bologna_size == 'full':
         GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
@@ -188,13 +208,12 @@ def main(bologna_size):
         area_abitata = processing.run("native:clip", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('localita_abitative.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
         save_layer(area_abitata, 'area_abitata_full', PROCESSED_DATA_DIR_PATH)
         area_abitata = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'))
-        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO"])]
+        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO", "CAAB"])]
         area_abitata.to_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'), driver="GeoJSON")
 
         # Create the grid for the entire city
         grid_bologna = processing.run("native:creategrid", {'TYPE':2,'EXTENT':str(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson')),'HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
         grid_bologna = processing.run("native:clip", {'INPUT':grid_bologna,'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-        #grid_bologna = processing.run("native:fixgeometries", {'INPUT':grid_bologna, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
         aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson')),'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     
@@ -210,7 +229,6 @@ def main(bologna_size):
         # Create the grid for the city center
         grid_bologna = processing.run("native:creategrid", {'TYPE':2,'EXTENT':area_abitata,'HSPACING':100,'VSPACING':100,'HOVERLAY':0,'VOVERLAY':0,'CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
         grid_bologna = processing.run("native:clip", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-        #grid_bologna = processing.run("native:fixgeometries", {'INPUT':grid_bologna, 'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
 
         aree_statistiche = processing.run("native:intersection", {'INPUT':grid_bologna,'OVERLAY':area_abitata,'INPUT_FIELDS':[],'OVERLAY_FIELDS':[],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
 
@@ -222,19 +240,23 @@ def main(bologna_size):
     verde = create_verde(RAW_DATA_DIR_PATH, PROCESSED_DATA_DIR_PATH)
 
     # Create the railway vector layer
-    ferrovia = create_ferrovia(RAW_DATA_DIR_PATH, PROCESSED_DATA_DIR_PATH)
-    save_layer(ferrovia, 'ferrovia', PROCESSED_DATA_DIR_PATH)
+    railway = create_ferrovia(RAW_DATA_DIR_PATH, PROCESSED_DATA_DIR_PATH)
+    save_layer(railway, 'ferrovia', PROCESSED_DATA_DIR_PATH)
 
     # Clean the street data
-    strade_clean = processing.run("native:multidifference", {'INPUT':str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")),'OVERLAYS':[verde, ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    strade_clean = processing.run("native:multidifference", {'INPUT':str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")),'OVERLAYS':[verde, railway],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(strade_clean, 'aree-stradali-modified', PROCESSED_DATA_DIR_PATH)
 
     # Compute the free space in which is possible to create new green cells
-    free_space = processing.run("native:multidifference", {'INPUT': grid_bologna,'OVERLAYS':[verde, str(RAW_DATA_DIR_PATH.joinpath('aree-stradali.geojson')), str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), ferrovia],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    available_space = gpd.read_file(str(RAW_DATA_DIR_PATH.joinpath('uso_suolo_bologna.geojson')))
+    available_space = available_space[available_space['DESCR'].isin(['Tessuto residenziale compatto e denso', 'Tessuto residenziale urbano', 'Tessuto residenziale  rado'])]
+    available_space.to_file(str(PROCESSED_DATA_DIR_PATH.joinpath('free_space.geojson')), driver='GeoJSON')
+    free_space = processing.run("native:multidifference", {'INPUT':str(PROCESSED_DATA_DIR_PATH.joinpath('free_space.geojson')),'OVERLAYS':[verde, str(RAW_DATA_DIR_PATH.joinpath('aree-stradali.geojson')), str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), railway],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     free_space = processing.run("native:multiparttosingleparts", {'INPUT':free_space,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(free_space, 'free_space', PROCESSED_DATA_DIR_PATH)
 
     # Compute how many areas each elements occupy inside the cells
-    grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':[verde, str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")), free_space, ferrovia],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':[verde, str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")), free_space, railway],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     grid_with_areas = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_areas,'POINTS':free_space,'WEIGHT':'','CLASSFIELD':'','FIELD':'free_space_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(grid_with_areas, 'grid_with_areas', GRID_DIR_PATH)
 
@@ -275,5 +297,5 @@ if __name__ == "__main__":
                         help="Whether to run the model on the city center or on the entire cityscape.")
     args = parser.parse_args()
     
-    squares_elimination()
+    streets_processing()
     main(args.size)

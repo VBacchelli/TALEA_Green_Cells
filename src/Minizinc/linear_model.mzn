@@ -13,7 +13,7 @@ array[1..len] of float: num_trees;
 array[1..len] of float: macro_factors;
 array[1..len] of float: full_space;
 
-float: max_street = beta_streets * max(street_space);
+float: max_street = max(street_space);
 float: max_yard = max(ext_space);
 float: max_areas = max(num_areas);
 float: max_trees = max(num_trees);

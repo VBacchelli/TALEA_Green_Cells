@@ -36,6 +36,7 @@ About this study
 
 This study aim to plan insertion of new green cells in the area of Bologna only reliyng on Optimization techniques, without the usage of Deep Neural Networks.
 The work can be divided into:
+
 - collecting data
 - creation of a model
 - exploring results with different parametrization

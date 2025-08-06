@@ -9,7 +9,7 @@ show_help() {
     echo "  --max_cells int        Maximum number of cells to be placed (default: 20)"
     echo "  --density_param float  Weight for the population density (default: 0.5)"
     echo "  --green_param float    Weight for the green space (default: 0.5)"
-    echo "  --streets_param float  Weight for the available street space (default: 0.4)"
+    echo "  --streets_param float  Weight for the available street space (default: 0.2)"
     echo "  --yard_param float     Weight for the yard space (default: 0.8)"
     echo "  --res_name str         Result name (default: result)"
     echo ""
@@ -30,7 +30,7 @@ SIZE="center"
 MAX_CELLS=20
 DENSITY_PARAM=0.5
 GREEN_PARAM=0.5
-STREETS_PARAM=0.4
+STREETS_PARAM=0.2
 YARD_PARAM=0.8
 RES_NAME="result"
 
