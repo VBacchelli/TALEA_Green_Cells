@@ -30,6 +30,7 @@ exclude_patterns = []
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 html_logo = '_static/logo_talea_nitido.png'
+html_css_files = ['custom.css']
 html_theme_options = {
     'logo_only': True,
     'prev_next_buttons_location': 'bottom',
