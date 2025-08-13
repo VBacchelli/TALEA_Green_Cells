@@ -1,16 +1,3 @@
-# Aggiornamento 04-08
-- Finire documentazione:
-    - specificare tutti i problemi sui dati e scelte progettuali
-    - motivo della dockerizzazione (QGIS)
-    - aggiungere risultati
-    - aggiungere visualizzazione dati, prima e dopo
-- Finire GUI
-- Nuovo modello con indici (UHEI)
-- Nuovo dataset:
-    - cambiare reti ferroviare
-    - free space calcolato solo in 'Tessuto residenziale ..'
-    - eliminare autostrade da aree stradali
-
 # Aggiornamento 11-06
 - Check docker
 - Aggiornare i nomi delle features (json utili: final_grid, processed/aree_statistiche)

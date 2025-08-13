@@ -1,4 +1,4 @@
-import os, sys
+import os
 import geopandas as gpd
 from pathlib import Path
 import pandas as pd

@@ -1,0 +1,47 @@
+Verde in gestione
+==================================
+`Verde in gestione <https://opendata.comune.bologna.it/explore/dataset/un_gest/information/?disjunctive.classe_unita_gestionale&disjunctive.area_statistica&disjunctive.zona_prossimita&disjunctive.quartiere>`_ 
+is located within the municipal territory of the Municipality of Bologna. 
+The management units under maintenance include a wide range of types, among which we highlight:
+
+- Flowerbeds and squares;
+- Gardens, parks, ponds
+- School green areas and sports green areas
+- Roadside decorative greenery (roundabouts, embankments, medians)
+
+<include image>
+
+Verde Privato 
+==================================
+`Verde privato <https://opendata.comune.bologna.it/explore/dataset/verde_privato_urbanizzato/information/>`_ corresponds to the mapping of green areas within the urbanized territory, excluding public green spaces under maintenance.
+This dataset with the "verde in gestione" constitutes the two main source of green spaces in the area of Bologna
+
+
+<include image>
+
+Alberi In Manutenzione 
+==================================
+
+The dataset `alberi in manutenzione <https://opendata.comune.bologna.it/explore/dataset/alberi-manutenzioni/information/?disjunctive.cl_h&disjunctive.dimora&disjunctive.classe&disjunctive.zona_di_prossimita&disjunctive.area_statistica>`_, 
+contains the information about the type of tree and the coordinates of all the trees planted in the city of Bologna.  
+The idea has been to use this dataset to have a more accurate information of the green spaces already available. 
+There are some areas in which we have no parks, nor gardens but there are trees, which are as important for heating and climate 
+factors. 
+
+The dataset only contains the coordinates of each trees, and estimate the ares occupied by each of them was not straightforward, and involved
+a too big approximation.
+
+The idea has been to count all the trees which does not fall inside a green space and use that count as a factor to increase the green impact.
+
+<include image>
+
+Aree Boschive and Aree Fluviali
+==================================
+`Aree boschive <https://geoportale.regione.emilia-romagna.it/catalogo/dati-cartografici/cartografia-di-base/database-topografico-regionale/vegetazione/aree-agro-forestali/layer-2>`_ and 
+contains area of land covered by tree and/or shrub and/or bush vegetation of forest species, whether of natural or artificial origin, at any stage of development, with a density greater than 10%.
+Instead `aree fluviali <https://geoportale.regione.emilia-romagna.it/catalogo/dati-cartografici/acque-interne>`_ contains the areas of watercourse.
+Aree boschive has been used to enlarge the amount of green space including the forest areas. In this study we have considered as "green" 
+also the, so called, blue space. There were no significant reasons to differentiate between the green and blue, also motivated by the absence
+of a large amount of waterfall in Bologna area.
+
+<include image>

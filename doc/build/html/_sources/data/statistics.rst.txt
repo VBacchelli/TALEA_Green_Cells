@@ -1,0 +1,14 @@
+Aree statistiche
+==========================
+
+`Aree statische <https://opendata.comune.bologna.it/explore/dataset/aree-statistiche/information/?sort=area_statistica&basemap=jawg.light&location=12,44.4887,11.33168>`_  contains 
+the division of the municipal territory into 90 statistical areas meets the need to define a “grid” of analysis 
+that is more detailed than the traditional division of Bologna into districts or zones, while at the same time sufficiently 
+concise compared to the highly fragmented structure of census sections.
+
+This dataset is used to delimit the area of Bologna, when you want to analyse smaller areas with respect to the entire municipal area 
+<include image>
+
+Popolazione per area statistica
+==================================
+`Popolazione per area statistica <add link>`_ contains the population density per Bologna statistical area.

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -e
+
+# Path to the pipeline script
+PIPELINE_SCRIPT="run_pipeline"
+
+# Directories to include
+CONFIG_DIRS=("config/center" "config/full")
+
+for DIR in "${CONFIG_DIRS[@]}"; do
+    echo "Searching configs in: $DIR"
+    # Find only *.yaml or *.yml files inside these directories
+    for CONFIG in "$DIR"/*.yaml "$DIR"/*.yml; do
+        # Skip if no matching files
+        [[ -e "$CONFIG" ]] || continue
+
+        echo "=========================================="
+        echo "Running pipeline for config: $CONFIG"
+        echo "=========================================="
+        $PIPELINE_SCRIPT --config "$CONFIG"
+        echo ""
+    done
+done
+
+echo "All center and full configs completed."

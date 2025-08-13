@@ -1,0 +1,14 @@
+Edifici particellari
+==============================
+`Edifici particellari <https://opendata.comune.bologna.it/explore/dataset/rifter_edif_pl/information/>`_ contains the list of buildings with parcel details extracted from the 
+Municipal Technical Map and aggregated and integrated with public cadastral information (Sheet/Parcel) from the cadastre, available 
+through the WMS service of the Revenue Agency for consultation of the cadastral maps.
+
+<include image>
+
+Aree stradali
+===============
+`Aree stradali <https://opendata.comune.bologna.it/explore/dataset/aree-stradali/information/?disjunctive.descrizion&disjunctive.origine>`_ 
+contains the areas of all the roads in the city of Bologna.
+
+<include image>

@@ -6,7 +6,7 @@
 TALEA documentation
 ===================
 
-In the face of mounting urban climate challenges—such as the intensification of Urban Heat Islands (UHI) and Urban Heat Waves (UHW)—European cities are urgently seeking transformative, scalable, and inclusive solutions. **TALEA (Transformative Adaptation for Local Environmental Action)** emerges as a pioneering initiative -- co-founded under the *European Urban Initiative – Innovative Actions (EUI-IA)* -- leveraging AI-driven methodologies to enhance urban resilience. By focusing on the integration of green infrastructure, TALEA aims to mitigate the adverse effects of climate change while promoting social equity and environmental sustainability.
+Welcome to the TALEA documentation!
 
 .. toctree::
    :maxdepth: 2
@@ -16,7 +16,6 @@ In the face of mounting urban climate challenges—such as the intensification o
    data
    model
    results
-   reproducibility
-   future_work
+   engineering_approach
    references
-   
+   future_work

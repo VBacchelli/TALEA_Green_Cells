@@ -9,7 +9,7 @@
   <title>Model &mdash; TALEA  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
-      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=58218b63" />
+      <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
@@ -17,6 +17,7 @@
       <script src="_static/documentation_options.js?v=5929fcd5"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/design-tabs.js?v=f930bc37"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -51,8 +52,8 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="results.html">Results</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reproducibility.html">Reproducibility</a></li>
-<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future development</a></li>
 <li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future development</a></li>
 </ul>
 
         </div>
@@ -85,20 +86,22 @@
 The best n cells are chosen as those with the highest utility function.
 The utility function for the cell <img class="math" src="_images/math/3d5f4981d5f447233d0c84fbd558870fc653cc1c.png" alt="i_{th}"/> is defined as:</p>
 <div class="math">
-<p><img src="_images/math/78ce034a398ea39962a215c3a61e10976fbc7aa4.png" alt="\text{utility}_i = \text{macro\_factor}_i \times
+<p><img src="_images/math/ce6124a246c36b3c641a8d377704b9945bed291d.png" alt="\mathrm{utility}_i =
+\mathrm{macro\_factor}_i \times
 \frac{
-   \left( \alpha_{\text{yard}} \frac{\text{yard\_cells}_i}{\text{max\_yard}}
-   + \frac{\text{street\_cells}_i}{\text{max\_street}} \right)
-   \Big/ \frac{\text{num\_areas}_i}{\text{max\_areas}}
+    \alpha_{\mathrm{yard}} \cdot \mathrm{yard\_cells}_i
+    + \mathrm{street\_cells}_i
 }{
-   \frac{\text{green\_space}_i}{\text{max\_green}}
-   \times \frac{\text{num\_trees}_i}{\text{max\_trees}}
+    \mathrm{num\_areas}_i
+    + \mathrm{green\_space}_i
+    + \mathrm{num\_trees}_i
 }"/></p>
 </div><ul class="simple">
 <li><p>macro_factor, which acts as a multiplicative factor to the “real” utility function. It is composed by the green space and the population density of the whole “area statistica”, where the actual cell is. The macro factor increases proportionally with respect to the population density and inversely with respect to the green space. The impact of population density and green space can be regulated by density_param and green_param, which spans in a range [0, 1];</p></li>
 </ul>
 <div class="math">
-<p><img src="_images/math/e2b30bda3277db9335aee8522955aecf0d047d78.png" alt="\text{macro\_factor}_i = (density\_param * density\_factor_i) + (green\_param * green\_factor_i)"/></p>
+<p><img src="_images/math/b5925faeff8a554656ab30f4bfad2e255e7c28da.png" alt="\mathrm{macro\_factor}_i = \mathrm{density\_param} * \mathrm{density\_factor}_i +
+\mathrm{green\_param} * \mathrm{green\_factor}_i"/></p>
 </div><ul class="simple">
 <li><p>street_cells: streets area inside the cell, using the parameter beta_street we can regulate which pecentage of street we are considering during the green placement;</p></li>
 <li><p>yard_cells: yard area inside the cell, using the parameter alpha_yard we can regulate which pecentage of yards we are considering during the green placement;</p></li>
@@ -106,6 +109,12 @@ The utility function for the cell <img class="math" src="_images/math/3d5f4981d5
 <li><p>green_space: the amount of green area already present in the cell;</p></li>
 <li><p>num_trees: the number of trees in the cell.</p></li>
 </ul>
+<p>All the elements in the utility function are normalized on the basis of their maximum value.</p>
+<p>While developing the model, we noticed that some cells miss data information.
+To address this, we introduced a constraint that serves as an approximation, preventing the model from placing green areas
+if the cell’s space exceeds half of the total available space.
+This approximation was necessary due to the lack of data,
+helping to avoid situations where the model assigns green space to areas that may actually contain features we have no information about.</p>
 </section>
 
 

@@ -4,44 +4,74 @@ Data
 
 Data Collection
 ------------------
+
 Data collection is one of the most important part of this project. Aiming to insert new green areas in the city of Bologna is necessary to have
 information about the already present green space, the human infrastructures and the population.
-Those informations have been gathered from `Open Data Bologna <https://opendata.comune.bologna.it/>`_ and 
+This information have been gathered from `Open Data Bologna <https://opendata.comune.bologna.it/>`_ and 
 `Geoportale Emilia Romagna <https://geoportale.regione.emilia-romagna.it/>`_.
-Opend Data Bologna, so as Geoportale Emilia Romagna, is a project which aims to collect and make the data of the city public, respecting the 
+Open Data Bologna, so as Geoportale Emilia Romagna, is a project which aims to collect and make the data of the city public, respecting the 
 Italian and European directive about the open data. 
-The data selected for this study are the followings:
-
-<insert a list with all the dataset and their explanations>
+In this study we used the followings' dataset:
 
 
-Those data are not thinked to be used in an algorithmic contest. Indeed, they lack of a usable structure, there is no unique dataset for the same data leading
+- :doc:`General information about Bologna land usage <script/data/land_usage>`
+- :doc:`Green datasets <script/data/green_dataset>`
+- :doc:`Human infrastructure datasets <script/data/buildable>`
+- :doc:`Statistical dataset <script/data/statistics>`
+
+
+Those data are not thought to be used in an algorithmic contest. Indeed, they lack of a usable structure, there is no unique dataset for the same data leading
 to multiple duplicates, some geospatial information are corrupted and need to be refined. Furthermore, some data are missing, requiring modifcation which leads to non-exact solutions.
-To overcome these problems an heavily processing step is required.
+To overcome these problems a heavily processing step is required.
 
 Preprocessing
 ------------------------------------
-The data were not ready to use, they needed to be regorganized.
+The data were not ready to use, they needed to be reorganized and processed in order to extrapolate the relevant information.
 One of the most useful tool to work with geospatial data is Qgis, which offers also a python interface. 
-The border of the city of Bologna has been extracted from the dataset "aree-statistiche", and then used for the creation of the grid structure.
-By default each cell of the grid has dimension 100x100 meters.
-Unfortunately, most areas along the borders have been removed by the dataset. This was necessary since there were a lack of information
-which caused the model to fail drammatically. 
-The final area under consideration is the one below <insert figure>.
-The dataset created has the cell grid as samples and the features are:
+Furthermore, many dataset present overlapping information which should not be duplicated.
 
-- green area: the area occupied by already present green space;
-- buildings area: the area occupied by buildings;
-- road area: the area occupied by roads;
-- railways area the area occupied by railways;
-- number of trees: the number of trees;
-- free space: the area where new green space could be placed;
-- free space number: how muhc the free space is segmented.
+To understand the preprocessing steps, let's define some approximation used during the definition of this study. 
+To place new green areas it is important to understand where to place them. On this purpose, it has been defined
+the "free space". The free space is the remaining space in the city, once you removed buildings, roads, all the human infrastructure and
+the green space. Basically, in most of the cases is the yard court of the buildings.
 
-To obtain these features, we created different datasets from which to extract information.
-To obtain a unique, and exhaustive, dataset containing all the Bologna green space, we have merged, without overlapping, four dataset: un_gest, verde_privato_urbanizzato, aree_boschive, aree_fluviali.
-It has been found that some spatial data in un_gest dataset were corrupted, and those creates gemotries inconsistencies. To avoid those, small amount of pixels have been removed.
+Furthermore, it has been hypothesized that the roads are places where new green areas could be inserted. Of course, this is an approximation, 
+but to make it as realistic as possible it has been decided to exclude all the squares and the highways, where it would have been
+more complex (or even impossible) to build upon.
 
-The only datasets available for railways and roads are made up as lines. Since areas cannot be extracted from lines, a buffer around them as been made. Of course, this lead to an approximation, which is necessary to avoid missing data in the final model.
+The steps done during preprocessing are the followings:
 
-The features have also been aggregated for each "area statistica", to obtain a global (macro) vision of the informations.
+- The green datasets contents have been aggregated under a unique dataset avoiding duplicates. In this process has been found that the dataset "un_gest", contains some geospatial information that were corrupted, causing errors in the union. To avoid this, we performed a geometry fixing operation which aims to connect this "holes" avoiding the aforementioned error;
+- The road dataset also contains squares and highways in it. To remove the squares, since no dataset for squares is available, the attribute "incorci stradali a raso" has been filterd. Empirically, has been found that setting a threshold which removes all the elements who's area is bigger than 7500 square meters is a good trade-off. Instead, for the highways, it has been made a difference operation with the dataset uso_del_suolo, which contains in the description the feature "Autostrade e superstrade".
+- The free space has been computed by selecting the residential areas from the dataset "uso_del_suolo" ('Tessuto residenziale compatto e denso', 'Tessuto residenziale urbano', 'Tessuto residenziale rado'). Then the difference between all the human infrastructures and green spaces has been made.
+- The border of the city of Bologna has been extracted from the dataset "aree-statistiche". Another approximation has been required.  Some areas in Bologna's borders lacks of information about the green space and buildings, so it has been decided to remove them. The final usable area is the one on the image. <insert image> 
+- Once delimited the area of work, it has been divided into a grid. Each cell of the grid is 100x100 meters.
+- The final dataset to be passed inside the optimization model is composed by all the cells of the grid and for each of them has been computed the area occupied by the green, buildings, road, free space and the number of free spaces and trees. The number of free spaces tells how much the free space is fragmented.
+
+<insert image>
+
+This "final dataset", only represents information under a small-scale view. It's also important to have a big-scale view. 
+This macro scale has been represented by the division in the dataset "aree-statistiche". 
+An important information about the macro-scale view is the population density. 
+This information has been obtained from the dataset "popolazione-per-area-statistica", dividing the population by the area itself.
+The new macro dataset contains all the used "aree statistiche" with information about the population density and the green space present there.
+
+.. grid:: 2
+
+    .. grid-item::
+
+        .. figure:: script/data/images/green_space.png
+           :width: 150px
+
+           Green areas
+
+    .. grid-item::
+
+        .. figure:: script/data/images/population_density.png
+           :width: 150px
+
+           Population densities
+
+As shown in the images above, the city center exhibits the highest population density and the lowest proportion of green areas.
+Moving toward the outskirts, population density gradually decreases.
+Unsurprisingly, the areas with the highest concentration of green space are the Colli.

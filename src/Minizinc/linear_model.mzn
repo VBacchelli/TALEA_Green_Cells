@@ -27,9 +27,9 @@ array[1..len] of var float: utility;
 % ----- Constraints ----- %
 constraint forall(i in 1..len)(
 	if num_areas[i] == 0.0 then
-		utility[i] = macro_factors[i] * (alpha_yard * (yard_cells[i] / max_yard) + (street_cells[i] / max_street)) / ((green_space[i] / max_green) * (num_trees[i] / max_trees))
+		utility[i] = macro_factors[i] * ((alpha_yard * (yard_cells[i] / max_yard) + (street_cells[i] / max_street)) / ((green_space[i] / max_green) + (num_trees[i] / max_trees) + 0.00000001))
 	else
-		utility[i] = macro_factors[i] * (((alpha_yard * (yard_cells[i] / max_yard)) + (street_cells[i] / max_street)) / (num_areas[i] / max_areas)) / ((green_space[i] / max_green) * (num_trees[i] / max_trees))
+		utility[i] = macro_factors[i] * ((alpha_yard * (yard_cells[i] / max_yard) + (street_cells[i] / max_street)) / ((num_areas[i] / max_areas) + (green_space[i] / max_green) + (num_trees[i] / max_trees) + 0.00000001))
 	endif
 );
 

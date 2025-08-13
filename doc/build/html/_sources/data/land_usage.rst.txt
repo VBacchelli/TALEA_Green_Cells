@@ -1,0 +1,17 @@
+Uso del suolo
+==================
+`Uso del suolo <https://geoportale.regione.emilia-romagna.it/approfondimenti/database-uso-del-suolo>`_ constitutes the 
+mapping of the various uses of the territory, classified according to a hierarchical legend derived from the specifications of the 
+European project Corine Land Cover (CLC), integrated by the Land Use Working Group of CPSG-CISIS. Since the 1970s, land use has 
+been one of the most requested and widely used regional geographic datasets, both by local authorities and by professionals in the sector.
+
+The Region has repeated the mapping of the entire territory in different years, in order to identify trends and changes in its use. 
+The used databases refers to the 2020. 
+
+The detailed Land Use Database is a valuable tool for understanding the territory for planning, management, and monitoring purposes. 
+It allows for both qualitative and quantitative evaluations, comparisons with editions created in different years, 
+and with other databases.
+
+In this study the database has been used to discriminate the areas marked as available to build green space on top of them.
+
+<insert image>

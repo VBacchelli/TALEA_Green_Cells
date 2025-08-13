@@ -1,0 +1,7 @@
+size: full
+max_cells: 50
+density_param: 0.9
+green_param: 0.1
+streets_param: 0.2
+yard_param: 0.8
+res_name: higher_density

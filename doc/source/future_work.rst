@@ -9,3 +9,6 @@ and expropriating private property is not easily feasible without encountering s
 
 Additional analyses could also be conducted on social conditions, connections to bus stops, and climate data—factors that were not 
 available during the development of this project.
+
+Furthermore, we plan to expand the GUI functionality to support real-time computation of new results based on 
+incoming data and to accommodate multiple data formats.
