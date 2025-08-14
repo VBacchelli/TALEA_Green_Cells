@@ -10,6 +10,7 @@
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=d3e31123" />
 
   
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
@@ -50,8 +51,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../results.html">Results</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../engineering_approach.html">Engineering Approach</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../future_work.html">Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../future_work.html">Future development</a></li>
 </ul>
 
         </div>
@@ -81,7 +82,7 @@
   <section id="verde-in-gestione">
 <h1>Verde in gestione<a class="headerlink" href="#verde-in-gestione" title="Link to this heading"></a></h1>
 <p><a class="reference external" href="https://opendata.comune.bologna.it/explore/dataset/un_gest/information/?disjunctive.classe_unita_gestionale&amp;disjunctive.area_statistica&amp;disjunctive.zona_prossimita&amp;disjunctive.quartiere">Verde in gestione</a>
-is located within the municipal territory of the Municipality of Bologna.
+is located within the cityscape of the Municipality of Bologna.
 The management units under maintenance include a wide range of types, among which we highlight:</p>
 <ul class="simple">
 <li><p>Flowerbeds and squares;</p></li>
@@ -89,15 +90,21 @@ The management units under maintenance include a wide range of types, among whic
 <li><p>School green areas and sports green areas</p></li>
 <li><p>Roadside decorative greenery (roundabouts, embankments, medians)</p></li>
 </ul>
-<a class="reference internal image-reference" href="../../_images/verde_gestione.png"><img alt="../../_images/verde_gestione.png" class="align-center" src="../../_images/verde_gestione.png" style="width: 300px;" />
+<a class="reference internal image-reference" href="../../_images/verde_gestione.png"><img alt="../../_images/verde_gestione.png" class="align-center" src="../../_images/verde_gestione.png" style="width: 450px;" />
 </a>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 </section>
 <section id="verde-privato">
 <h1>Verde Privato<a class="headerlink" href="#verde-privato" title="Link to this heading"></a></h1>
 <p><a class="reference external" href="https://opendata.comune.bologna.it/explore/dataset/verde_privato_urbanizzato/information/">Verde privato</a> corresponds to the mapping of green areas within the urbanized territory, excluding public green spaces under maintenance.
 This dataset with the “verde in gestione” constitutes the two main source of green spaces in the area of Bologna</p>
-<a class="reference internal image-reference" href="../../_images/verde_privato.png"><img alt="../../_images/verde_privato.png" class="align-center" src="../../_images/verde_privato.png" style="width: 300px;" />
+<a class="reference internal image-reference" href="../../_images/verde_privato.png"><img alt="../../_images/verde_privato.png" class="align-center" src="../../_images/verde_privato.png" style="width: 450px;" />
 </a>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 </section>
 <section id="alberi-in-manutenzione">
 <h1>Alberi In Manutenzione<a class="headerlink" href="#alberi-in-manutenzione" title="Link to this heading"></a></h1>
@@ -106,21 +113,23 @@ contains the information about the type of tree and the coordinates of all the t
 The idea has been to use this dataset to have a more accurate information of the green spaces already available.
 There are some areas in which we have no parks, nor gardens but there are trees, which are as important for heating and climate
 factors.</p>
-<p>The dataset only contains the coordinates of each trees, and estimate the ares occupied by each of them was not straightforward, and involved
-a too big approximation.</p>
-<p>The idea has been to count all the trees which does not fall inside a green space and use that count as a factor to increase the green impact.</p>
-<a class="reference internal image-reference" href="../../_images/alberi_manutenzione.png"><img alt="../../_images/alberi_manutenzione.png" class="align-center" src="../../_images/alberi_manutenzione.png" style="width: 300px;" />
+<p>The dataset only contains the coordinates of each trees, and estimate the ares occupied by each of them was not straightforward, and involved a too big approximation.
+Therefore, the idea has been to count all the trees which do not fall inside a green space and use that count as a factor to increase the green impact.</p>
+<a class="reference internal image-reference" href="../../_images/alberi_manutenzione.png"><img alt="../../_images/alberi_manutenzione.png" class="align-center" src="../../_images/alberi_manutenzione.png" style="width: 450px;" />
 </a>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 </section>
 <section id="aree-boschive-and-aree-fluviali">
 <h1>Aree Boschive and Aree Fluviali<a class="headerlink" href="#aree-boschive-and-aree-fluviali" title="Link to this heading"></a></h1>
-<p><a class="reference external" href="https://geoportale.regione.emilia-romagna.it/catalogo/dati-cartografici/cartografia-di-base/database-topografico-regionale/vegetazione/aree-agro-forestali/layer-2">Aree boschive</a> and
-contains area of land covered by tree and/or shrub and/or bush vegetation of forest species, whether of natural or artificial origin, at any stage of development, with a density greater than 10%.
-Instead <a class="reference external" href="https://geoportale.regione.emilia-romagna.it/catalogo/dati-cartografici/acque-interne">aree fluviali</a> contains the areas of watercourse.
-Aree boschive has been used to enlarge the amount of green space including the forest areas. In this study we have considered as “green”
-also the, so called, blue space. There were no significant reasons to differentiate between the green and blue, also motivated by the absence
-of a large amount of waterfall in Bologna area.</p>
-<a class="reference internal image-reference" href="../../_images/aree_boschive_fluviali.png"><img alt="../../_images/aree_boschive_fluviali.png" class="align-center" src="../../_images/aree_boschive_fluviali.png" style="width: 300px;" />
+<p><a class="reference external" href="https://geoportale.regione.emilia-romagna.it/catalogo/dati-cartografici/cartografia-di-base/database-topografico-regionale/vegetazione/aree-agro-forestali/layer-2">Aree boschive</a>
+contains area of land covered by tree and/or shrub and/or bush vegetation of forest species, whether of natural or artificial origin, at any stage of development, with a density greater than 10%. It has been used to enlarge the amount of green space including the forest areas.
+On the other side, <a class="reference external" href="https://geoportale.regione.emilia-romagna.it/catalogo/dati-cartografici/acque-interne">Aree fluviali</a> contains the areas covered by water, including rivers, riverbeds and lakes.</p>
+<p>In this study, it has been decided to collapse the two dataset, considering as green the so called <em>blue space</em>, too.
+There were no significant reasons to differentiate between the green and blue, also due to the absence
+of a large amount of waterfall in the Bologna Municipality.</p>
+<a class="reference internal image-reference" href="../../_images/aree_boschive_fluviali.png"><img alt="../../_images/aree_boschive_fluviali.png" class="align-center" src="../../_images/aree_boschive_fluviali.png" style="width: 450px;" />
 </a>
 </section>
 

@@ -5,14 +5,16 @@ Municipal Technical Map and aggregated and integrated with public cadastral info
 through the WMS service of the Revenue Agency for consultation of the cadastral maps.
 
 .. image:: images/raw_data/edifici.png
-    :width: 300px
+    :width: 450px
     :align: center
+
+|
 
 Aree stradali
 ===============
 `Aree stradali <https://opendata.comune.bologna.it/explore/dataset/aree-stradali/information/?disjunctive.descrizion&disjunctive.origine>`_ 
-contains the areas of all the roads in the city of Bologna.
+contains the street areas in the city of Bologna, including all the different types of roads, parking areas and squares.
 
 .. image:: images/raw_data/strade.png
-    :width: 300px
+    :width: 450px
     :align: center

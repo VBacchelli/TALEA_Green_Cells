@@ -10,6 +10,7 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=d3e31123" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
@@ -56,8 +57,8 @@
 <li class="toctree-l1"><a class="reference internal" href="model.html">Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="results.html">Results</a></li>
 <li class="toctree-l1"><a class="reference internal" href="engineering_approach.html">Engineering Approach</a></li>
+<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
-<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future development</a></li>
 </ul>
 
         </div>
@@ -88,11 +89,11 @@
 <h1>Data<a class="headerlink" href="#data" title="Link to this heading"></a></h1>
 <section id="data-collection">
 <h2>Data Collection<a class="headerlink" href="#data-collection" title="Link to this heading"></a></h2>
-<p>Data collection is one of the most important part of this project. Aiming to insert new green areas in the city of Bologna is necessary to have
+<p>Data collection is one of the most important part of this project. Aiming to insert new green areas in the city of Bologna, it is necessary to have
 information about the already present green space, the human infrastructures and the population.
 This information have been gathered from <a class="reference external" href="https://opendata.comune.bologna.it/">Open Data Bologna</a> and
 <a class="reference external" href="https://geoportale.regione.emilia-romagna.it/">Geoportale Emilia Romagna</a>.
-Open Data Bologna, so as Geoportale Emilia Romagna, is a project which aims to collect and make the data of the city public, respecting the
+Open Data Bologna, so as Geoportale Emilia Romagna, is an initiative which aims to collect and make the data of the city public, respecting the
 Italian and European directive about the open data.
 In this study we used the followings’ dataset:</p>
 <ul class="simple">
@@ -101,54 +102,63 @@ In this study we used the followings’ dataset:</p>
 <li><p><a class="reference internal" href="script/data/buildable.html"><span class="doc">Human infrastructure datasets</span></a></p></li>
 <li><p><a class="reference internal" href="script/data/statistics.html"><span class="doc">Statistical dataset</span></a></p></li>
 </ul>
-<p>Those data are not thought to be used in an algorithmic contest. Indeed, they lack of a usable structure, there is no unique dataset for the same data leading
-to multiple duplicates, some geospatial information are corrupted and need to be refined. Furthermore, some data are missing, requiring modifcation which leads to non-exact solutions.
-To overcome these problems a heavily processing step is required.</p>
+<p>Those data are not thought to be used in an algorithmic contest. Indeed, they lack of a usable structure, there is no unique dataset for the same data, leading
+to multiple duplicates. Furthermore, some geospatial information are corrupted and need to be refined and some data are missing, requiring modifcation which leads to non-exact solutions.
+To overcome these problems a heavy processing step is required.</p>
 </section>
 <section id="preprocessing">
 <h2>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading"></a></h2>
-<p>The data were not ready to use, they needed to be reorganized and processed in order to extrapolate the relevant information.
-One of the most useful tool to work with geospatial data is Qgis, which offers also a python interface.
-Furthermore, many dataset present overlapping information which should not be duplicated.</p>
+<p>The data are not ready to use, they need to be reorganized and processed in order to extrapolate the relevant information.
+One of the most useful tool to work with geospatial data is QGIS, which offers also a python interface.
+Furthermore, many datasets present overlapping information which should not be duplicated.</p>
 <p>To understand the preprocessing steps, let’s define some approximation used during the definition of this study.
-To place new green areas it is important to understand where to place them. On this purpose, it has been defined
-the “free space”. The free space is the remaining space in the city, once you removed buildings, roads, all the human infrastructure and
-the green space. Basically, in most of the cases is the yard court of the buildings.</p>
+To place new green areas it is important to understand where to place them. For this purpose, it has been defined the concept of <strong>free space</strong>.
+The free space is the remaining space in the city, once you remove buildings, roads, all the human infrastructure and
+the green space. Basically, in most of the cases it represents the yard court of the buildings.</p>
 <p>Furthermore, it has been hypothesized that the roads are places where new green areas could be inserted. Of course, this is an approximation,
 but to make it as realistic as possible it has been decided to exclude all the squares and the highways, where it would have been
 more complex (or even impossible) to build upon.</p>
 <p>The steps done during preprocessing are the followings:</p>
 <ul class="simple">
-<li><p>The green datasets contents have been aggregated under a unique dataset avoiding duplicates. In this process has been found that the dataset “un_gest”, contains some geospatial information that were corrupted, causing errors in the union. To avoid this, we performed a geometry fixing operation which aims to connect this “holes” avoiding the aforementioned error;</p></li>
-<li><p>The road dataset also contains squares and highways in it. To remove the squares, since no dataset for squares is available, the attribute “incorci stradali a raso” has been filterd. Empirically, has been found that setting a threshold which removes all the elements who’s area is bigger than 7500 square meters is a good trade-off. Instead, for the highways, it has been made a difference operation with the dataset uso_del_suolo, which contains in the description the feature “Autostrade e superstrade”.</p></li>
-<li><p>The free space has been computed by selecting the residential areas from the dataset “uso_del_suolo” (‘Tessuto residenziale compatto e denso’, ‘Tessuto residenziale urbano’, ‘Tessuto residenziale rado’). Then the difference between all the human infrastructures and green spaces has been made.</p></li>
-<li><p>The border of the city of Bologna has been extracted from the dataset “aree-statistiche”. Another approximation has been required.  Some areas in Bologna’s borders lacks of information about the green space and buildings, so it has been decided to remove them. The final usable area is the one on the image. &lt;insert image&gt;</p></li>
-<li><p>Once delimited the area of work, it has been divided into a grid. Each cell of the grid is 100x100 meters.</p></li>
-<li><p>The final dataset to be passed inside the optimization model is composed by all the cells of the grid and for each of them has been computed the area occupied by the green, buildings, road, free space and the number of free spaces and trees. The number of free spaces tells how much the free space is fragmented.</p></li>
+<li><p>The green datasets contents have been aggregated under a unique dataset, avoiding duplicates. In this process, it has been found that the dataset <em>un_gest</em> contains some corrupted geospatial information, causing errors in the union. Therefore, we performed a geometry fixing operation, which aims to connect this “holes” avoiding the aforementioned error;</p></li>
+<li><p>The road dataset also contains squares and highways in it. Since no dataset for squares is available, the attribute <em>‘Tronco di intersezione tra strade a raso’</em> has been properly filterd to delete squares. Empirically, it has been found that setting a threshold which removes all the elements who’s area is bigger than 7500 square meters is a good trade-off. Instead, the highways are contained in the dataset <em>uso_del_suolo</em> under the feature <em>“Autostrade e superstrade”</em>. Therefore, the roads have been filtered by performing a difference operation with the dataset <em>uso_del_suolo</em>;</p></li>
+<li><p>The free space has been computed by selecting the residential areas from the dataset <em>uso_del_suolo</em>, under the features <em>‘Tessuto residenziale compatto e denso’, ‘Tessuto residenziale urbano’, ‘Tessuto residenziale rado’</em>. From this base, the deletion previously described has been performed, removing the green space, the roads and the buildings;</p></li>
+<li><p>The cityscape of Bologna has been extracted from the dataset <em>aree-statistiche</em>. However, some areas lack of information about the green space and buildings, so it has been decided to remove them. The final usable area is described in the image below.</p></li>
+<li><p>Once delimited the area of work, a grid of cells with dimensions 100x100 meters has been created to define where to insert the new TGCs.</p></li>
+<li><p>The final dataset used by the optimization model is composed of all the cells of the grid, where each of them in enriched by the area occupied by the green space, buildings, road, free space and the number of free space fragments and trees.</p></li>
 </ul>
-<p>&lt;insert image&gt;</p>
-<p>This “final dataset”, only represents information under a small-scale view. It’s also important to have a big-scale view.
-This macro scale has been represented by the division in the dataset “aree-statistiche”.
-An important information about the macro-scale view is the population density.
-This information has been obtained from the dataset “popolazione-per-area-statistica”, dividing the population by the area itself.
-The new macro dataset contains all the used “aree statistiche” with information about the population density and the green space present there.</p>
+<a class="reference internal image-reference" href="_images/final_grid.png"><img alt="_images/final_grid.png" class="align-center" src="_images/final_grid.png" style="width: 500px;" />
+</a>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>This “final dataset”, only represents information under a <strong>micro-scale</strong> view. It’s also important to have a <strong>macro-scale</strong> view, represented by the dataset <em>aree_statistiche_macro</em>.
+The macro scale defines the information about:</p>
+<ul class="simple">
+<li><p><em>population density</em>, stored in <em>densità-per-area-statistica</em> and obtained from the division between the population from the dataset <em>popolazione-per-area-statistica</em> and the area itself;</p></li>
+<li><p><em>green space</em>, contained in <em>aree_statistiche_stat</em>, resulting from the aggregation of the green space present in each area.</p></li>
+</ul>
+<p>The new macro dataset contains all the used “aree statistiche” with information about the population density and the green space present there.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 docutils">
 <div class="sd-col sd-d-flex-column docutils">
 <figure class="align-default" id="id1">
-<a class="reference internal image-reference" href="_images/green_space.png"><img alt="_images/green_space.png" src="_images/green_space.png" style="width: 150px;" />
+<a class="reference internal image-reference" href="_images/green_space.png"><img alt="_images/green_space.png" src="_images/green_space.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Green areas</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+<p><span class="caption-text">Green areas distribution</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 <div class="sd-col sd-d-flex-column docutils">
 <figure class="align-default" id="id2">
-<a class="reference internal image-reference" href="_images/population_density.png"><img alt="_images/population_density.png" src="_images/population_density.png" style="width: 150px;" />
+<a class="reference internal image-reference" href="_images/population_density.png"><img alt="_images/population_density.png" src="_images/population_density.png" style="width: 295px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Population densities</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+<p><span class="caption-text">Population density distribution</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>

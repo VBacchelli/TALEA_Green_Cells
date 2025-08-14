@@ -14,7 +14,7 @@ By focusing on the integration of green infrastructure, TALEA aims to mitigate t
 social equity and environmental sustainability.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    background
@@ -22,5 +22,5 @@ social equity and environmental sustainability.
    model
    results
    engineering_approach
-   references
    future_work
+   references

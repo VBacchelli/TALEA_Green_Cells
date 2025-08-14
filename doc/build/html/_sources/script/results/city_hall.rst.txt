@@ -1,8 +1,7 @@
 Bologna city hall
 ==========================
-In this study also the behavior on the whole city of Bologna have been examined. 
-In this case, the placement of 50 new green cells have been hypothesized. Multiple configurations, as in the case of the city center
-have been examined.
+In the case of the whole Bologna cityscape, the area under examination is much larger than the city center. 
+Therefore, in any configuration of parameters, the number of green cells to be placed grows up to 50, identified as a good tradeoff with the area-of-work extention. 
 
 Default configuration
 -----------------------
@@ -10,27 +9,23 @@ In the default configuration we set the same parameter as in the city center. Ro
 density parameter in the macro factor with the same weight.
 
 From the macro factor representation we can see how the city center is the area that has the highest need for the placement of new green cells,
-so as for "Pontevecchio", "Bolognina" and "Saragozza", not a surprise due to the high population density and low green availability. 
+so as for "Pontevecchio", "Bolognina" and "Saragozza" and it is not a surprise due to the high population density and low green availability. 
 The areas with the lowest need are the peripheral ones.
 
 The results confirm what the macro factor visualization anticipated, most of the cells with the highest utility have been placed in the 
 city center, "Pontevecchio" and "Bolognina".
 
-.. grid:: 2
+.. figure:: images/full/macro_factor_default.png
+    :width: 500px
+    :align: center
 
-    .. grid-item::
+    Macro factor per each area
 
-        .. figure:: images/full/macro_factor_default.png
-           :width: 150px
+.. figure:: images/full/default_full.png
+    :width: 500px
+    :align: center
 
-           Macro factor per each area
-
-    .. grid-item::
-
-        .. figure:: images/full/default_full.png
-           :width: 150px
-
-           Default config, utility graduated
+    Resulting TGCs, utility graduated
 
 Green enhanced
 -----------------------
@@ -41,41 +36,33 @@ placement are those with the highest population density.
 What slightly change is that the peripheral areas, completely ignored in the default representation are now targeted as possible areas due to 
 the lack of green, like "Borgo Panigale" and "Roveri".
 
-.. grid:: 2
+.. figure:: images/full/macro_factor_higher_green.png
+    :width: 500px
+    :align: center
 
-    .. grid-item::
+    Macro factor per each area
 
-        .. figure:: images/full/macro_factor_higher_density.png
-           :width: 150px
+.. figure:: images/full/higher_green_full.png
+    :width: 500px
+    :align: center
 
-           Macro factor per each area
-
-    .. grid-item::
-
-        .. figure:: images/full/higher_green_full.png
-           :width: 150px
-
-           Green enhanced config, utility graduated
+    Resulting TGCs, utility graduated
 
 Density enhanced
 -----------------------
 Opposite to the green enhancement, as it was foreseeable, areas like "Saragozza" and "Pontevecchio" acquires even more importance.
 
-.. grid:: 2
+.. figure:: images/full/macro_factor_higher_density.png
+    :width: 500px
+    :align: center
 
-    .. grid-item::
+    Macro factor per each area
 
-        .. figure:: images/full/macro_factor_higher_green.png
-           :width: 150px
-
-           Macro factor per each area
-
-    .. grid-item::
-
-        .. figure:: images/full/higher_density_full.png
-           :width: 150px
-
-           Density enhanced config, utility graduated
+.. figure:: images/full/higher_density_full.png
+    :width: 500px
+    :align: center
+    
+    Resulting TGCs, utility graduated
 
 No yard
 -----------------------
@@ -84,42 +71,34 @@ in the city center, this can be explained since
 the city center is highly density populated and has lower amount of green, but it is poor of yard. This implies that majority of the 
 available space is given by the streets.
 
-.. grid:: 2
+.. figure:: images/full/macro_factor_default.png
+    :width: 500px
+    :align: center
 
-    .. grid-item::
+    Macro factor per each area (same as default)
 
-        .. figure:: images/full/macro_factor_default.png
-           :width: 150px
+.. figure:: images/full/no_yard_full.png
+    :width: 500px
+    :align: center
 
-           Macro factor per each area
-
-    .. grid-item::
-
-        .. figure:: images/full/no_yard_full.png
-           :width: 150px
-
-           No yard config, utility graduated
+    Resulting TGCs, utility graduated
            
 No street
 -----------------------
 This experiment shows how removing the streets the cells have been placed spread around the city hall, but almost all outside the city center.
 This confirms what explained before for the "no yard" configuration.
 
-.. grid:: 2
+.. figure:: images/full/macro_factor_default.png
+    :width: 500px
+    :align: center
 
-    .. grid-item::
+    Macro factor per each area (same as default)
 
-        .. figure:: images/full/macro_factor_default.png
-           :width: 150px
+.. figure:: images/full/no_street_full.png
+    :width: 500px
+    :align: center
 
-           Macro factor per each area
-
-    .. grid-item::
-
-        .. figure:: images/full/no_street_full.png
-           :width: 150px
-
-        No streets, utility graduated
+    Resulting TGCs, utility graduated
 
 Conclusion
 ---------------

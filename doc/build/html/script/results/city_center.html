@@ -10,6 +10,7 @@
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=d3e31123" />
 
   
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
@@ -50,8 +51,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../results.html">Results</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../engineering_approach.html">Engineering Approach</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../future_work.html">Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../future_work.html">Future development</a></li>
 </ul>
 
         </div>
@@ -80,30 +81,32 @@
              
   <section id="bologna-city-center">
 <h1>Bologna city center<a class="headerlink" href="#bologna-city-center" title="Link to this heading"></a></h1>
-<p>The city center includes all the area inside the Bologna’s wall.
+<p>The city center includes all the area inside the original Bologna’s wall layout, composed of the following zones: Marconi, Malpighi, Irnerio and Galvani.
 In this scenario, it has been hypotesized the placement of 20 possible green cells.</p>
 <section id="default-configuration">
 <h2>Default configuration<a class="headerlink" href="#default-configuration" title="Link to this heading"></a></h2>
-<p>In the “default” parameter configuration we have imposed that only 20% of the streets and 80% of the yards were available, in each cell,
-to insert new green areas. Furthermore, in the macro factor we have imposed that the weight of the population density and the
-green space already present is the same, 0.5 each.</p>
+<p>In the <em>default parameter configuration</em> we have imposed that only 20% of the streets and 80% of the yards were available, in each cell, to insert new green areas.
+Furthermore, in the macro factor we have imposed that the weight of the population density and the green space already present is the same, 0.5 each.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 docutils">
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id1">
-<a class="reference internal image-reference" href="../../_images/macro_factor.png"><img alt="../../_images/macro_factor.png" src="../../_images/macro_factor.png" style="width: 150px;" />
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="../../_images/macro_factor.png"><img alt="../../_images/macro_factor.png" src="../../_images/macro_factor.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config, utility graduated</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+<p><span class="caption-text">Macro factor heatmap</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id2">
-<a class="reference internal image-reference" href="../../_images/default_center.png"><img alt="../../_images/default_center.png" src="../../_images/default_center.png" style="width: 150px;" />
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="../../_images/default_center.png"><img alt="../../_images/default_center.png" src="../../_images/default_center.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config with population density highlighted</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+<p><span class="caption-text">Resulting TGCs, utility graduated</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
@@ -111,56 +114,62 @@ green space already present is the same, 0.5 each.</p>
 </div>
 <p>As was foreseeable, the majority of cells, and those with the higher utility,
 have been placed on zones with higher density population. This is expected, since in the 8 district in the
-city center there is a more or less equal distribution of the green areas and spaces were to place new green areas.</p>
+city center there is a more or less equal distribution of the green areas and spaces where it is possible to place new green areas.</p>
 </section>
-<section id="green-enanched">
-<h2>Green enanched<a class="headerlink" href="#green-enanched" title="Link to this heading"></a></h2>
-<p>Enanching the green parameter of the macro factor, with respect to the density, we can note how some
+<section id="green-enhanced">
+<h2>Green enhanced<a class="headerlink" href="#green-enhanced" title="Link to this heading"></a></h2>
+<p><em>Enhancing the green parameter</em> of the macro factor, with respect to the density, we can note how some
 cells are now individuated in the areas lacking of green. And, the utility scale grading is now a little bit different.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 docutils">
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id3">
-<a class="reference internal image-reference" href="../../_images/macro_factor_higher_green.png"><img alt="../../_images/macro_factor_higher_green.png" src="../../_images/macro_factor_higher_green.png" style="width: 150px;" />
+<figure class="align-center" id="id3">
+<a class="reference internal image-reference" href="../../_images/macro_factor_higher_green.png"><img alt="../../_images/macro_factor_higher_green.png" src="../../_images/macro_factor_higher_green.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config, utility graduated</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+<p><span class="caption-text">Macro factor heatmap</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id4">
-<a class="reference internal image-reference" href="../../_images/higher_green.png"><img alt="../../_images/higher_green.png" src="../../_images/higher_green.png" style="width: 150px;" />
+<figure class="align-center" id="id4">
+<a class="reference internal image-reference" href="../../_images/higher_green.png"><img alt="../../_images/higher_green.png" src="../../_images/higher_green.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config with population density highlighted</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+<p><span class="caption-text">Resulting TGCs, utility graduated</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
 </section>
-<section id="density-enanched">
-<h2>Density enanched<a class="headerlink" href="#density-enanched" title="Link to this heading"></a></h2>
-<p>Enanching the density parameter of the macro factor, with respect to the green, we can note how some
+<section id="density-enhanced">
+<h2>Density enhanced<a class="headerlink" href="#density-enhanced" title="Link to this heading"></a></h2>
+<p><em>Enhancing the density parameter</em> of the macro factor, with respect to the green, we can note how some
 cells are placed with respect to density, so as the macro factor slightly change.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 docutils">
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id5">
-<a class="reference internal image-reference" href="../../_images/macro_factor_higher_density.png"><img alt="../../_images/macro_factor_higher_density.png" src="../../_images/macro_factor_higher_density.png" style="width: 150px;" />
+<figure class="align-center" id="id5">
+<a class="reference internal image-reference" href="../../_images/macro_factor_higher_density.png"><img alt="../../_images/macro_factor_higher_density.png" src="../../_images/macro_factor_higher_density.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config, utility graduated</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+<p><span class="caption-text">Macro factor heatmap</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id6">
-<a class="reference internal image-reference" href="../../_images/higher_density.png"><img alt="../../_images/higher_density.png" src="../../_images/higher_density.png" style="width: 150px;" />
+<figure class="align-center" id="id6">
+<a class="reference internal image-reference" href="../../_images/higher_density.png"><img alt="../../_images/higher_density.png" src="../../_images/higher_density.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config with population density highlighted</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+<p><span class="caption-text">Resulting TGCs, utility graduated</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
@@ -169,55 +178,59 @@ cells are placed with respect to density, so as the macro factor slightly change
 </section>
 <section id="no-yard">
 <h2>No yard<a class="headerlink" href="#no-yard" title="Link to this heading"></a></h2>
-<p>Removing the yard as the availability to place new green areas has been experimented, by setting at 0 the corresponding parameter in the
-utility function.</p>
-<p>Of course, the macro factor visualization is the same as the default one.</p>
+<p><em>Removing the yard</em> from the availability to place new green areas has been experimented, by setting at 0 the corresponding parameter in the utility function.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 docutils">
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id7">
-<a class="reference internal image-reference" href="../../_images/macro_factor.png"><img alt="../../_images/macro_factor.png" src="../../_images/macro_factor.png" style="width: 150px;" />
+<figure class="align-center" id="id7">
+<a class="reference internal image-reference" href="../../_images/macro_factor.png"><img alt="../../_images/macro_factor.png" src="../../_images/macro_factor.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config, utility graduated</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+<p><span class="caption-text">Macro factor heatmap (same as default)</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id8">
-<a class="reference internal image-reference" href="../../_images/no_yard.png"><img alt="../../_images/no_yard.png" src="../../_images/no_yard.png" style="width: 150px;" />
+<figure class="align-center" id="id8">
+<a class="reference internal image-reference" href="../../_images/no_yard.png"><img alt="../../_images/no_yard.png" src="../../_images/no_yard.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config with population density highlighted</span><a class="headerlink" href="#id8" title="Link to this image"></a></p>
+<p><span class="caption-text">Resulting TGCs, utility graduated</span><a class="headerlink" href="#id8" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>As expected, this experiment produces a strong change in the results, since all the cells are now placed entirely on the streets, with a focus on larger ones.
+Good candidates in this case are “Via Guglielmo Marconi”, “Via Irnerio” and the crossroads in the immediate nearby of the Bologna central train station.</p>
 </section>
 <section id="no-street">
 <h2>No street<a class="headerlink" href="#no-street" title="Link to this heading"></a></h2>
-<p>Also removing the streets as the availability to place new green areas has been experimented, by setting at 0 the corresponding parameter in the
-utility function. This experiment does not produce a strong change in the results, this is due to the already small amount of streets available
-to build on. Indeed the default value is setted to 20%.</p>
-<p>Of course, the macro factor visualization is the same as the default one.</p>
+<p>Also <em>removing the streets</em> from the availability to place new green areas has been experimented, by setting at 0 the corresponding parameter in the utility function.
+This experiment does not produce a strong change in the results, due to the already small amount of streets available to build on.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
 <div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 docutils">
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id9">
-<a class="reference internal image-reference" href="../../_images/macro_factor.png"><img alt="../../_images/macro_factor.png" src="../../_images/macro_factor.png" style="width: 150px;" />
+<figure class="align-center" id="id9">
+<a class="reference internal image-reference" href="../../_images/macro_factor.png"><img alt="../../_images/macro_factor.png" src="../../_images/macro_factor.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config, utility graduated</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+<p><span class="caption-text">Macro factor heatmap (same as default)</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
 <div class="sd-col sd-d-flex-column docutils">
-<figure class="align-default" id="id10">
-<a class="reference internal image-reference" href="../../_images/no_street.png"><img alt="../../_images/no_street.png" src="../../_images/no_street.png" style="width: 150px;" />
+<figure class="align-center" id="id10">
+<a class="reference internal image-reference" href="../../_images/no_street.png"><img alt="../../_images/no_street.png" src="../../_images/no_street.png" style="width: 300px;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Default config with population density highlighted</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
+<p><span class="caption-text">Resulting TGCs, utility graduated</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </div>
@@ -226,8 +239,9 @@ to build on. Indeed the default value is setted to 20%.</p>
 </section>
 <section id="conclusion">
 <h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading"></a></h2>
-<p>Overall, in the city center, we are not going to encounter strong changes throught the different experiments.
-This is not a surprise, since the area under examination is small, so as the number of new cells.
+<p>Overall, as shown in the images, in the city center we are not going to encounter strong changes throught the different experiments.
+This is not a surprise, since the area under examination is small, as long as the number of new cells.</p>
+<p>However, combined or custom configurations can be tested to explore the behavior of the model, even if this study is focused on checking the impact of each parameter change.
 Furthermore, no “fancy” experiments have been made, such as using the 100% of roads, since they are not realistic in a real-world case.</p>
 </section>
 </section>

@@ -1,8 +1,7 @@
 Results 
 ==========
-The optimization model developed was applied to two different spatial scales: the city center of Bologna and 
-the entire municipal area. For both case studies, five distinct configurations were tested to explore how different priorities and 
-constraints affect the placement of new green areas.
+The optimization model developed has been applied to two different spatial scales: the **city center** of Bologna and the **entire municipal area**. 
+For both case studies, five distinct configurations of the previously mentioned parameters were tested to explore how different priorities and constraints affect the placement of new green areas.
 
 
 - :doc:`City center <script/results/city_center>`

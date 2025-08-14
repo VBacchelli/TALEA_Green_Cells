@@ -10,6 +10,7 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=d3e31123" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
@@ -51,9 +52,9 @@
 <li class="toctree-l1"><a class="reference internal" href="data.html">Data</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="results.html">Results</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reproducibility.html">Reproducibility</a></li>
-<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="engineering_approach.html">Engineering Approach</a></li>
 <li class="toctree-l1"><a class="reference internal" href="future_work.html">Future development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
 </ul>
 
         </div>
@@ -82,9 +83,8 @@
              
   <section id="model">
 <h1>Model<a class="headerlink" href="#model" title="Link to this heading"></a></h1>
-<p>The model objective is to find the n “best” cells where place a green cell.
-The best n cells are chosen as those with the highest utility function.
-The utility function for the cell <img class="math" src="_images/math/3d5f4981d5f447233d0c84fbd558870fc653cc1c.png" alt="i_{th}"/> is defined as:</p>
+<p>The model is built on the objective of finding the <img class="math" src="_images/math/5a939c5280da7202ca4531f175a7780ad5e1f80a.png" alt="n"/> “best” cells to place a TGC, that maximize a <strong>utility function</strong>.
+It is the composition of a <strong>macro factor</strong> and a <strong>micro factor</strong>, where only the last one is effectively influenced by the placement. For each cell <img class="math" src="_images/math/3d5f4981d5f447233d0c84fbd558870fc653cc1c.png" alt="i_{th}"/> the function is defined as:</p>
 <div class="math">
 <p><img src="_images/math/ce6124a246c36b3c641a8d377704b9945bed291d.png" alt="\mathrm{utility}_i =
 \mathrm{macro\_factor}_i \times
@@ -97,21 +97,30 @@ The utility function for the cell <img class="math" src="_images/math/3d5f4981d5
     + \mathrm{num\_trees}_i
 }"/></p>
 </div><ul class="simple">
-<li><p>macro_factor, which acts as a multiplicative factor to the “real” utility function. It is composed by the green space and the population density of the whole “area statistica”, where the actual cell is. The macro factor increases proportionally with respect to the population density and inversely with respect to the green space. The impact of population density and green space can be regulated by density_param and green_param, which spans in a range [0, 1];</p></li>
+<li><p><img class="math" src="_images/math/953d38c51647a64727119c88cf04b5e99618462b.png" alt="macro\_factor"/> <img class="math" src="_images/math/8c8a765a28b30e31a1ab27a5df8aed228f8b57fb.png" alt="\rightarrow"/> acts as a simple multiplicative factor. It is computed with the green space and the population density of the whole “area statistica” where the actual cell is. In particular, it increases proportionally with respect to the population density (<img class="math" src="_images/math/96a51a3bbfc2cfea700d0fb1d4e94a9775a0035a.png" alt="density\_factor"/>) and inversely with respect to the green space (<img class="math" src="_images/math/63bc92acd3cf5ffc6de20acea589b2f76b9feb33.png" alt="green\_factor"/>). The impact of these two factors is weghted through a <img class="math" src="_images/math/a443d4ccc2d243e005e549373dec0cf6023f7d6d.png" alt="density\_param"/> and a <img class="math" src="_images/math/5d5e36760e52e870d3524952027f2549e34db07c.png" alt="green\_param"/>, which span in the range [0, 1];</p></li>
 </ul>
 <div class="math">
 <p><img src="_images/math/b5925faeff8a554656ab30f4bfad2e255e7c28da.png" alt="\mathrm{macro\_factor}_i = \mathrm{density\_param} * \mathrm{density\_factor}_i +
 \mathrm{green\_param} * \mathrm{green\_factor}_i"/></p>
 </div><ul class="simple">
-<li><p>street_cells: streets area inside the cell, using the parameter beta_street we can regulate which pecentage of street we are considering during the green placement;</p></li>
-<li><p>yard_cells: yard area inside the cell, using the parameter alpha_yard we can regulate which pecentage of yards we are considering during the green placement;</p></li>
-<li><p>num_areas: the number of yard_cells inside a cell. The higher it is this number the more the yard area is fragmented;</p></li>
-<li><p>green_space: the amount of green area already present in the cell;</p></li>
-<li><p>num_trees: the number of trees in the cell.</p></li>
+<li><p><img class="math" src="_images/math/4bcf6e11577e5ebe7dec17939f1c0d85fa6ebaa9.png" alt="street\_cells"/> <img class="math" src="_images/math/8c8a765a28b30e31a1ab27a5df8aed228f8b57fb.png" alt="\rightarrow"/> streets area inside the cell. With the parameter <img class="math" src="_images/math/1330fb9442e3b007f661a99f5ae735cedd94f540.png" alt="\beta_{streets}"/>, we can regulate which pecentage of the street is available for the placement of a TGC;</p></li>
 </ul>
-<p>All the elements in the utility function are normalized on the basis of their maximum value.</p>
-<p>While developing the model, we noticed that some cells miss data information.
-To address this, we introduced a constraint that serves as an approximation, preventing the model from placing green areas
+<div class="math">
+<p><img src="_images/math/918731f28db25eed03cf75f2a642fa8d4d43efc7.png" alt="\mathrm{street\_cells}_i \leq \beta_{\mathrm{streets}} \cdot \mathrm{street\_area}_i"/></p>
+</div><ul class="simple">
+<li><p><img class="math" src="_images/math/dc21011784d359d0d96fc76714992bbe86291374.png" alt="yard\_cells"/> <img class="math" src="_images/math/8c8a765a28b30e31a1ab27a5df8aed228f8b57fb.png" alt="\rightarrow"/> yard area inside the cell. The placement of a TGC here is limited by the free space (<img class="math" src="_images/math/9c8433edc0178bfe5b3f540b2e5feacc2b5fb3a5.png" alt="ext\_space"/> in the model) and its impact of the utility function is regulated by the parameter <img class="math" src="_images/math/4b277703d5b137377c209464f487dacf89ac4269.png" alt="\alpha_{yard}"/>;</p></li>
+</ul>
+<div class="math">
+<p><img src="_images/math/a49652cf7eaff00f43d781467e09281ff39d32fe.png" alt="\mathrm{yard\_cells}_i \leq \mathrm{ext\_space}_i"/></p>
+</div><ul class="simple">
+<li><p><img class="math" src="_images/math/4a8213fd25d607e7dd4b25072e7303a4ebbc3524.png" alt="num\_areas"/> <img class="math" src="_images/math/8c8a765a28b30e31a1ab27a5df8aed228f8b57fb.png" alt="\rightarrow"/> number of yard_cells inside a cell. The higher it is, the more the yard area is fragmented and the lower is the utility;</p></li>
+<li><p><img class="math" src="_images/math/573dd94f7e3f3d5bf7f405854bc584cb7b529901.png" alt="green\_space"/> <img class="math" src="_images/math/8c8a765a28b30e31a1ab27a5df8aed228f8b57fb.png" alt="\rightarrow"/> amount of green area already present in the cell. The utility grows inversely to this value;</p></li>
+<li><p><img class="math" src="_images/math/e8904a281e2add14f74b9d8dcd17a9a6fd7ff75b.png" alt="num\_trees"/> <img class="math" src="_images/math/8c8a765a28b30e31a1ab27a5df8aed228f8b57fb.png" alt="\rightarrow"/> number of trees in the cell (same behavior as the green space).</p></li>
+</ul>
+<p>All the elements in the utility function are normalized on the basis of their maximum value, in a way that each factor influces the utility equally.</p>
+<p>[NOTE – TO BE TESTED WITHOUT]
+Anyways, while developing the model, we noticed that some cells lack of data information regarding the land usage.
+To address this problem, we introduced a constraint that serves as an approximation, preventing the model from placing green areas
 if the cell’s space exceeds half of the total available space.
 This approximation was necessary due to the lack of data,
 helping to avoid situations where the model assigns green space to areas that may actually contain features we have no information about.</p>

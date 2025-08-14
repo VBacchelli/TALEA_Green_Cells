@@ -2,7 +2,7 @@ Uso del suolo
 ==================
 `Uso del suolo <https://geoportale.regione.emilia-romagna.it/approfondimenti/database-uso-del-suolo>`_ constitutes the 
 mapping of the various uses of the territory, classified according to a hierarchical legend derived from the specifications of the 
-European project Corine Land Cover (CLC), integrated by the Land Use Working Group of CPSG-CISIS. Since the 1970s, land use has 
+European project *Corine Land Cover (CLC)*, integrated by the Land Use Working Group of CPSG-CISIS. Since the 1970s, land use has 
 been one of the most requested and widely used regional geographic datasets, both by local authorities and by professionals in the sector.
 
 The Region has repeated the mapping of the entire territory in different years, in order to identify trends and changes in its use. 
