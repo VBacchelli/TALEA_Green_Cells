@@ -41,10 +41,3 @@ It is the composition of a **macro factor** and a **micro factor**, where only t
 - :math:`num\_trees` :math:`\rightarrow` number of trees in the cell (same behavior as the green space).
 
 All the elements in the utility function are normalized on the basis of their maximum value, in a way that each factor influces the utility equally.
-
-[NOTE -- TO BE TESTED WITHOUT]
-Anyways, while developing the model, we noticed that some cells lack of data information regarding the land usage. 
-To address this problem, we introduced a constraint that serves as an approximation, preventing the model from placing green areas 
-if the cell's space exceeds half of the total available space. 
-This approximation was necessary due to the lack of data, 
-helping to avoid situations where the model assigns green space to areas that may actually contain features we have no information about.

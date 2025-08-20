@@ -45,18 +45,6 @@ constraint forall(i in 1..len)(
 	street_cells[i] + yard_cells[i] + green_space[i] <= full_space[i]
 );
 
-% constraint forall(i in 1..len)(
-% 	if ext_space[i] >= 0.5 * full_space[i] then
-% 		yard_cells[i] = 0.0
-% 	endif
-% );
-
-% constraint forall(i in 1..len)(
-% 	if street_space[i] >= 0.5 * full_space[i] then
-% 		street_cells[i] = 0.0
-% 	endif
-% );
-
 constraint sum(i in 1..len where street_cells[i] != 0.0 \/ yard_cells[i] != 0.0)(1) <= top_k;
 
 % ----- Objective Variable ----- %
