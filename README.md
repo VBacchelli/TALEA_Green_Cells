@@ -31,8 +31,13 @@ There are two modalities to run the pipeline in the docker shell:
     run_model
     ```
 
-An alternative is to run all the preset configurations, which emphasize one parameter at a time, with the command:
+- An alternative is to run all the preset configurations, which emphasize one parameter at a time, with the command:
 
-```bash
-run_all
-```
+    ```bash
+    run_all
+    ```
+
+### Link
+
+GUI - https://talea-gui.netlify.app/
+Documentation - https://talea-documentation.netlify.app/
