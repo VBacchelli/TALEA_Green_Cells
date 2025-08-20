@@ -1,3 +1,7 @@
+// geojson-utils.js
+
+// --- Internal helpers ---
+
 // Inverse Web Mercator (EPSG:3857) -> WGS84 (EPSG:4326)
 function from3857To4326([x, y]) {
   const R = 6378137;
@@ -6,20 +10,46 @@ function from3857To4326([x, y]) {
   return [lon, lat];
 }
 
-// Detect if coordinates look like EPSG:3857 meters (big numbers)
-function looksLike3857(firstCoord) {
-  if (!Array.isArray(firstCoord) || firstCoord.length < 2) return false;
-  const [x, y] = firstCoord;
+// Walk arbitrary coordinate depth, applying fn([x,y]) -> [lon,lat]
+function mapCoords(coords, fn) {
+  if (typeof coords?.[0] === "number") return fn(coords);
+  return coords.map((c) => mapCoords(c, fn));
+}
+
+// Pull the first coordinate pair we can find (for heuristics)
+function firstCoordOfGeom(geom) {
+  if (!geom) return null;
+  const { type, coordinates, geometries } = geom;
+  if (type === "GeometryCollection") {
+    for (const g of geometries || []) {
+      const c = firstCoordOfGeom(g);
+      if (c) return c;
+    }
+    return null;
+  }
+  let c = coordinates;
+  while (Array.isArray(c) && Array.isArray(c[0])) c = c[0];
+  return c; // should be [x,y] or null
+}
+
+// Simple bbox-based hint (FC-level or Feature-level)
+function bboxSuggests3857(bbox) {
+  if (!Array.isArray(bbox) || bbox.length < 4) return false;
+  const [minX, minY, maxX, maxY] = bbox;
+  return (
+    Math.abs(minX) > 180 || Math.abs(maxX) > 180 ||
+    Math.abs(minY) > 90  || Math.abs(maxY) > 90
+  );
+}
+
+// Magnitude heuristic: lon/lat are small; 3857 meters are large
+function coordSuggests3857(coord) {
+  if (!Array.isArray(coord) || coord.length < 2) return false;
+  const [x, y] = coord;
   return Math.abs(x) > 180 || Math.abs(y) > 90;
 }
 
-// Walk any coordinates array and transform with fn([x,y])
-function mapCoords(coords, fn) {
-  if (typeof coords[0] === "number") {
-    return fn(coords);
-  }
-  return coords.map((c) => mapCoords(c, fn));
-}
+// --- Public API ---
 
 // Normalize any GeoJSON input to a FeatureCollection
 export function toFeatureCollection(geojson) {
@@ -34,12 +64,9 @@ export function toFeatureCollection(geojson) {
 
   // Bare Geometry
   if (
-    t === "Point" ||
-    t === "MultiPoint" ||
-    t === "LineString" ||
-    t === "MultiLineString" ||
-    t === "Polygon" ||
-    t === "MultiPolygon" ||
+    t === "Point" || t === "MultiPoint" ||
+    t === "LineString" || t === "MultiLineString" ||
+    t === "Polygon" || t === "MultiPolygon" ||
     t === "GeometryCollection"
   ) {
     return {
@@ -51,42 +78,63 @@ export function toFeatureCollection(geojson) {
   throw new Error(`Unsupported GeoJSON type: ${t}`);
 }
 
-// Reproject if needed
-export function reprojectIfNeeded(geojson) {
+/**
+ * Detect the CRS of the given GeoJSON.
+ * Returns one of: "EPSG:4326", "EPSG:3857", or "unknown".
+ * Uses (1) declared crs, (2) bbox hints, (3) coordinate magnitude heuristics.
+ */
+export function detectCrs(geojson) {
   const fc = toFeatureCollection(geojson);
 
-  // If declared EPSG:3857 or looks like meters, convert to 4326
-  const declared3857 =
-    fc.crs &&
-    (fc.crs.properties?.name?.includes("EPSG::3857") ||
-      fc.crs.properties?.name?.includes("EPSG:3857"));
+  // 1) Declared CRS, if any
+  const name = fc?.crs?.properties?.name || fc?.crs?.name || "";
+  const nameUC = String(name).toUpperCase();
 
-  function firstCoordOfGeom(geom) {
-    if (!geom) return null;
-    const { type, coordinates, geometries } = geom;
-    if (type === "GeometryCollection") {
-      for (const g of geometries || []) {
-        const c = firstCoordOfGeom(g);
-        if (c) return c;
-      }
-      return null;
-    }
-    let c = coordinates;
-    while (Array.isArray(c) && Array.isArray(c[0])) c = c[0];
-    return c;
+  if (nameUC.includes("EPSG:4326") || nameUC.includes("WGS84")) {
+    return "EPSG:4326";
+  }
+  if (
+    nameUC.includes("EPSG:3857") ||
+    nameUC.includes("EPSG::3857") ||
+    nameUC.includes("900913") // old alias used by some tools
+  ) {
+    return "EPSG:3857";
   }
 
-  let seems3857 = false;
+  // 2) BBox hints (on FC or first Feature with bbox)
+  if (bboxSuggests3857(fc.bbox)) return "EPSG:3857";
+  for (const f of fc.features) {
+    if (bboxSuggests3857(f.bbox)) return "EPSG:3857";
+  }
+
+  // 3) Coordinate magnitude heuristic
   for (const f of fc.features) {
     const c = firstCoordOfGeom(f.geometry);
-    if (c && looksLike3857(c)) {
-      seems3857 = true;
-      break;
-    }
+    if (!c) continue;
+    if (coordSuggests3857(c)) return "EPSG:3857";
+
+    // Optional positive hint for 4326
+    const [x, y] = c;
+    if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return "EPSG:4326";
   }
 
-  if (!(declared3857 || seems3857)) return fc; // assume already 4326
+  return "unknown";
+}
 
+/**
+ * Reproject to EPSG:4326 ONLY if detection says EPSG:3857.
+ * Otherwise, returns the input (normalized to FeatureCollection) unchanged.
+ */
+export function reprojectIfNeeded(geojson) {
+  const fc = toFeatureCollection(geojson);
+  const crs = detectCrs(fc);
+
+  if (crs !== "EPSG:3857") {
+    // Already 4326 or unknown → assume safe as-is
+    return fc;
+  }
+
+  // Convert every geometry coordinate pair from 3857 → 4326
   return {
     ...fc,
     crs: { type: "name", properties: { name: "EPSG:4326" } },
@@ -99,7 +147,7 @@ export function reprojectIfNeeded(geojson) {
           ...feat,
           geometry: {
             ...g,
-            geometries: g.geometries.map((gg) => ({
+            geometries: (g.geometries || []).map((gg) => ({
               ...gg,
               coordinates: mapCoords(gg.coordinates, from3857To4326),
             })),

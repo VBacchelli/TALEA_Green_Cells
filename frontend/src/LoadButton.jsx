@@ -6,48 +6,61 @@ export default function LoadButton({ onLoad }) {
   const openPicker = () => inputRef.current?.click();
 
   const onChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const json = JSON.parse(reader.result);
-        onLoad?.(json);
-      } catch (err) {
-        console.error("Invalid GeoJSON:", err);
-        alert("Could not parse the selected file as JSON/GeoJSON.");
-      }
-    };
-    reader.readAsText(file);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const json = JSON.parse(reader.result);
+          onLoad?.(json, file.name);
+        } catch (err) {
+          console.error("Invalid GeoJSON:", err);
+          alert(`Could not parse "${file.name}" as JSON/GeoJSON.`);
+        }
+      };
+      reader.readAsText(file);
+    });
 
-    e.target.value = ""; // allow re-upload same file
+    // allow re-selecting the same files again later
+    e.target.value = "";
   };
 
   return (
     <>
-      <button
-        onClick={openPicker}
+      {/* Floating control group under Leaflet zoom controls */}
+      <div
         style={{
           position: "absolute",
           top: 80,
           left: 10,
           zIndex: 1000,
-          padding: "6px 10px",
-          backgroundColor: "white",
-          color: "black",
-          border: "1px solid #000",
-          borderRadius: 4,
-          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
         }}
-        title="Load a local .geojson file"
       >
-        Load GeoJSON
-      </button>
+        <button
+          onClick={openPicker}
+          style={{
+            padding: "6px 10px",
+            backgroundColor: "white",
+            color: "black",
+            border: "1px solid #000",
+            borderRadius: 4,
+            cursor: "pointer",
+          }}
+          title="Load one or more local .geojson files"
+        >
+          Load GeoJSON
+        </button>
+      </div>
 
       <input
         ref={inputRef}
         type="file"
+        multiple
         accept=".geojson,application/geo+json,application/json"
         onChange={onChange}
         style={{ display: "none" }}
