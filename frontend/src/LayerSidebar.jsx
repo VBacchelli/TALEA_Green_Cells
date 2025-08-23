@@ -66,7 +66,7 @@ export default function LayerSidebar({
             style={{
               padding: "4px 8px",
               background: layers.length === 0 ? "#fafafa" : "#f5f5f5",
-              color: layers.length === 0 ? "#bbb" : "inherit",
+              color: layers.length === 0 ? "black":"black",
               border: "1px solid #ddd",
               borderRadius: 6,
               cursor: layers.length === 0 ? "not-allowed" : "pointer",
@@ -151,6 +151,7 @@ export default function LayerSidebar({
                   style={{
                     fontWeight: 600,
                     overflow: "hidden",
+                    color: "black",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
@@ -185,6 +186,7 @@ export default function LayerSidebar({
                   style={{
                     padding: "2px 8px",
                     background: "#f5f5f5",
+                    color: "black",
                     border: "1px solid #ddd",
                     borderRadius: 6,
                     cursor: "pointer",
@@ -388,19 +390,6 @@ export default function LayerSidebar({
                   </label>
 
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => onZoomTo(lyr.id)}
-                      style={{
-                        padding: "4px 8px",
-                        background: "#f5f5f5",
-                        border: "1px solid #ddd",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
-                      title="Zoom to layer"
-                    >
-                      Zoom
-                    </button>
 
                     <button
                       onClick={() => onRemove(lyr.id)}
