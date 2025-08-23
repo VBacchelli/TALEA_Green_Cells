@@ -97,7 +97,6 @@ function lerpHsl(hex1, hex2, t) {
     l: a.l + (b.l - a.l) * t,
   });
 }
-
 function makeRamp(startHex, endHex, classes) {
   const arr = [];
   for (let i = 0; i < classes; i++) {
@@ -180,6 +179,9 @@ export default function SimpleMap() {
 
   // layers: [{ id, name, data, visible, colorMode, color, opacity, classify, numericFields }]
   const [layers, setLayers] = useState([]);
+
+  // Sidebar visibility
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   // Add a new layer from raw GeoJSON
   const addLayer = (raw, filename = "Layer") => {
@@ -371,6 +373,32 @@ export default function SimpleMap() {
       map.fitBounds(bounds, { padding: [20, 20] });
   };
 
+  // Scrollable popup content for all features
+  const onEachFeature = (feature, layer) => {
+    const props = feature?.properties || {};
+    const title = props.name || props.id || feature?.geometry?.type || "Feature";
+
+    const rows = Object.entries(props)
+      .map(
+        ([k, v]) =>
+          `<div style="padding:4px 0;border-bottom:1px solid #eee;">
+            <b>${k}:</b> <span>${String(v)}</span>
+          </div>`
+      )
+      .join("");
+
+    const html = `
+      <div style="max-width:260px;">
+        <div style="font-weight:700;margin-bottom:6px;">${title}</div>
+        <div style="max-height:220px; overflow:auto; padding-right:6px;">
+          ${rows || "<i>No properties</i>"}
+        </div>
+      </div>
+    `;
+
+    layer.bindPopup(html, { maxWidth: 300 });
+  };
+
   // Per-layer styling (single or classify)
   const pointToLayer = (layerCfg) => (feature, latlng) => {
     const mode = layerCfg.colorMode;
@@ -437,20 +465,7 @@ export default function SimpleMap() {
               }}
               style={makeStyleFn(lyr)}
               pointToLayer={pointToLayer(lyr)}
-              onEachFeature={(feature, layer) => {
-                const props = feature?.properties || {};
-                const title =
-                  props.name || props.id || feature?.geometry?.type;
-                const lines = Object.entries(props)
-                  .slice(0, 10)
-                  .map(
-                    ([k, v]) => `<div><b>${k}:</b> ${String(v)}</div>`
-                  )
-                  .join("");
-                layer.bindPopup(
-                  `<div><b>${title}</b>${lines ? "<hr/>" + lines : ""}</div>`
-                );
-              }}
+              onEachFeature={onEachFeature}
             />
           ) : null
         )}
@@ -458,8 +473,11 @@ export default function SimpleMap() {
 
       {/* Controls */}
       <LoadButton onLoad={handleLoad} />
+
       <LayerSidebar
         layers={layers}
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
         onToggleVisible={toggleVisible}
         onZoomTo={zoomToLayer}
         onRemove={removeLayer}
@@ -472,6 +490,30 @@ export default function SimpleMap() {
         onClassCountChange={changeClassCount}
         onRampChange={changeRamp}
       />
+
+      {/* Floating button to show sidebar when hidden */}
+      {!sidebarVisible && (
+        <button
+          onClick={() => setSidebarVisible(true)}
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            zIndex: 1200,
+            padding: "8px 12px",
+            background: "white",
+            color: "black",
+            border: "1px solid #ddd",
+            borderRadius: 6,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+          title="Show sidebar"
+        >
+          Loaded layers
+        </button>
+      )}
     </div>
   );
 }
