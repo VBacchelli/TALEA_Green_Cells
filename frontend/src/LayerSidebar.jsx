@@ -2,10 +2,11 @@ import React, { useState } from "react";
 
 /**
  * Sidebar with collapsible rows.
- * Collapsed header shows: color swatch, NAME (always), Visible checkbox, [+] expand
+ * Header shows Clear All and ✕ (hide).
+ * Collapsed row shows: color swatch, NAME (always), Visible checkbox, [+] expand.
  * Expanded shows: Rename, Color mode (single/choropleth), Single color picker,
  *                 Attribute, Classes, Ramp start/end (with gradient preview), Opacity,
- *                 Zoom, Remove
+ *                 Zoom, Remove.
  */
 export default function LayerSidebar({
   layers,
@@ -20,10 +21,14 @@ export default function LayerSidebar({
   onClassFieldChange,
   onClassCountChange,
   onRampChange,
+  visible,
+  onClose,
 }) {
   const [expanded, setExpanded] = useState({});
   const toggleExpand = (id) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  if (!visible) return null;
 
   return (
     <div
@@ -54,21 +59,37 @@ export default function LayerSidebar({
         }}
       >
         Layers
-        <button
-          onClick={onClearAll}
-          disabled={layers.length === 0}
-          style={{
-            padding: "4px 8px",
-            background: layers.length === 0 ? "#fafafa" : "#d2d2d2ff",
-            color: layers.length === 0 ? "#bbb" : "black",
-            border: "1px solid #ddd",
-            borderRadius: 6,
-            cursor: layers.length === 0 ? "not-allowed" : "pointer",
-          }}
-          title="Remove all layers"
-        >
-          Clear All
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onClearAll}
+            disabled={layers.length === 0}
+            style={{
+              padding: "4px 8px",
+              background: layers.length === 0 ? "#fafafa" : "#f5f5f5",
+              color: layers.length === 0 ? "#bbb" : "inherit",
+              border: "1px solid #ddd",
+              borderRadius: 6,
+              cursor: layers.length === 0 ? "not-allowed" : "pointer",
+            }}
+            title="Remove all layers"
+          >
+            Clear All
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "4px 8px",
+              background: "#f5f5f5",
+              color: "black",
+              border: "1px solid #ddd",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+            title="Hide sidebar"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: 10, overflowY: "auto" }}>
@@ -103,7 +124,7 @@ export default function LayerSidebar({
                 background: "#fff",
               }}
             >
-              {/* HEADER (always visible). Name always shown here */}
+              {/* HEADER ROW (always visible) */}
               <div
                 style={{
                   display: "grid",
@@ -112,7 +133,7 @@ export default function LayerSidebar({
                   alignItems: "center",
                 }}
               >
-                {/* swatch */}
+                {/* color swatch */}
                 <span
                   title="Layer color"
                   style={{
@@ -128,9 +149,8 @@ export default function LayerSidebar({
                 {/* NAME — always visible */}
                 <div
                   style={{
-                    fontWeight: 300,
+                    fontWeight: 600,
                     overflow: "hidden",
-                    color: "black",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
@@ -165,7 +185,6 @@ export default function LayerSidebar({
                   style={{
                     padding: "2px 8px",
                     background: "#f5f5f5",
-                    color: "black",
                     border: "1px solid #ddd",
                     borderRadius: 6,
                     cursor: "pointer",
@@ -178,7 +197,7 @@ export default function LayerSidebar({
                 </button>
               </div>
 
-              {/* BODY (shown only when expanded) */}
+              {/* BODY (expanded settings) */}
               {isOpen && (
                 <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                   {/* Rename */}
@@ -351,7 +370,7 @@ export default function LayerSidebar({
                     </>
                   )}
 
-                  {/* Opacity (applies to both modes) */}
+                  {/* Opacity */}
                   <label style={{ display: "grid", gap: 6 }}>
                     <span style={{ fontSize: 12, color: "#555" }}>
                       Opacity: {(lyr.opacity ?? 1).toFixed(2)}
