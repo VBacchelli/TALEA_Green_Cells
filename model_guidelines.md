@@ -1,3 +1,11 @@
+# References
+- *On the Relation between NDVI, Fractional Vegetation Cover, and Leaf Area Index*
+
+    Relation between Fractional Vegetation Cover and NDVI
+- *Demystifying normalized difference vegetation index (NDVI) for greenness exposure assessments and policy interventions in urban greening*
+
+    Each area of interest has difference values of NDVI and it changes also on the basis of the tree canopy
+
 # Aggiornamento 11-06
 - Check docker
 - Aggiornare i nomi delle features (json utili: final_grid, processed/aree_statistiche)
