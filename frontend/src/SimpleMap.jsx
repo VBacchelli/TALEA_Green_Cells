@@ -411,7 +411,7 @@ export default function SimpleMap() {
     }
 
     return L.circleMarker(latlng, {
-      radius: 6,
+      radius: 1,
       weight: 2,
       color,
       opacity,
@@ -449,6 +449,8 @@ export default function SimpleMap() {
         zoom={13}
         style={{ height: "100vh", width: "100vw" }}
         whenCreated={(map) => (mapRef.current = map)}
+        zoomSnap={0.4}   // allow steps of 0.1 instead of 1
+        zoomDelta={0.4}  // how much each scroll/pinch zoom changes
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
