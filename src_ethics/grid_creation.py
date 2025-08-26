@@ -247,7 +247,7 @@ def main(bologna_size):
         area_abitata = processing.run("native:clip", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('localita_abitative.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
         save_layer(area_abitata, 'area_abitata_full', PROCESSED_DATA_DIR_PATH)
         area_abitata = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'))
-        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO", "CAAB"])]
+        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "LAVINO DI MEZZO", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO", "CAAB"])]
         area_abitata.to_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'), driver="GeoJSON")
 
         # Create the grid for the entire city
