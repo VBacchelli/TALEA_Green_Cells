@@ -4,21 +4,24 @@ set -e
 show_help() {
     echo "Usage: run_model [OPTIONS]"
     echo ""
-    echo "Parameters (with defaults):"
+    echo "Options:"
+    echo "  --config FILE          YAML config file (mutually exclusive with all other options)"
     echo "  --size str             Map size: 'center' or 'full' (default: center)"
-    echo "  --max_cells int        Maximum number of cells to be placed (default: 20)"
-    echo "  --density_param float  Weight for the population density (default: 0.5)"
-    echo "  --green_param float    Weight for the green space (default: 0.5)"
-    echo "  --streets_param float  Weight for the available street space (default: 0.2)"
-    echo "  --yard_param float     Weight for the yard space (default: 0.8)"
+    echo "  --max_cells int        Maximum number of cells (default: 20)"
+    echo "  --density_param float  Population density weight (default: 0.5)"
+    echo "  --green_param float    Green space weight (default: 0.5)"
+    echo "  --streets_param float  Street space weight (default: 0.2)"
+    echo "  --yard_param float     Yard space weight (default: 0.8)"
     echo "  --res_name str         Result name (default: result)"
+    echo "  --help                 Show this help message"
     echo ""
     echo "Notes:"
     echo "- All float parameters should be in the range [0, 1]."
-    echo "- The density_param and the green_param should sum to 1."
+    echo "- The density_param and green_param should sum to 1."
     echo ""
     echo "Example:"
-    echo ">> run_model --size full --max_cells 30 --density_param 0.7 --green_param 0.3 --streets_param 0.5 --yard_param 1.0 --res_name result_my_spec"
+    echo ">> run_model.sh --config default_config.yaml"
+    echo ">> run_model.sh --size full --max_cells 30 --density_param 0.7 --green_param 0.25 --streets_param 0.25 --uhei_param 0.25 --fragility_macro 0.25 --yard_param 1.0 --res_name result_my_spec"
     exit 0
 }
 
@@ -26,13 +29,19 @@ show_help() {
 # Default values
 # ============================
 
+CONFIG=""
 SIZE="center"
 MAX_CELLS=20
-DENSITY_PARAM=0.5
-GREEN_PARAM=0.5
+DENSITY_PARAM=0.25
+GREEN_PARAM=0.25
+UHEI_PARAM=0.25
+FRAGILITY_MACRO=0.25
+ALPHA_UHEI=0.5
 STREETS_PARAM=0.2
 YARD_PARAM=0.8
 RES_NAME="result"
+
+OTHER_ARGS_SEEN=0
 
 # ============================
 # Parse parameters
@@ -40,30 +49,57 @@ RES_NAME="result"
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --size) SIZE="$2"; shift ;;
-        --max_cells) MAX_CELLS="$2"; shift ;;
-        --density_param) DENSITY_PARAM="$2"; shift ;;
-        --green_param) GREEN_PARAM="$2"; shift ;;
-        --streets_param) STREETS_PARAM="$2"; shift ;;
-        --yard_param) YARD_PARAM="$2"; shift ;;
-        --res_name) RES_NAME="$2"; shift ;;
-        --help) show_help ;;
-        *) echo "Unknown parameter: $1"; show_help ;;
+        --config)
+            if [[ -n "$CONFIG" ]]; then
+                echo "Error: --config specified more than once."
+                exit 1
+            fi
+            CONFIG="$2"
+            shift
+            ;;
+        --size|--max_cells|--density_param|--green_param|--uhei_param|--fragility_macro|--streets_param|--yard_param|--res_name)
+            if [[ -n "$CONFIG" ]]; then
+                echo "Error: --config cannot be combined with other parameters like $1"
+                exit 1
+            fi
+            OTHER_ARGS_SEEN=1
+            eval "$(echo "${1:2}" | tr '-' '_' | tr '[:lower:]' '[:upper:]')=\"$2\""
+            shift
+            ;;
+        --help)
+            show_help
+            ;;
+        *)
+            echo "Unknown parameter: $1"
+            show_help
+            ;;
     esac
     shift
 done
 
 # ============================
-# Consistency check for size matching
+# Load config if provided
 # ============================
 
-echo "Checking consistency of size parameter..."
-echo ""
-PREV_SIZE=$(grep '^size:' config/config.yaml | awk '{print $2}')
-if [[ "$PREV_SIZE" != "$SIZE" ]]; then
-    echo "ERROR! The specified size '$SIZE' does not match the existing config size '$PREV_SIZE'. Please ensure that the size parameter is consistent with the existing configuration."
-    echo ""
-    exit 1
+if [[ -n "$CONFIG" ]]; then
+    echo "Loading config from $CONFIG..."
+
+    if [[ ! -f "$CONFIG" ]]; then
+        echo "Error: Config file '$CONFIG' does not exist."
+        exit 1
+    fi
+
+    eval "$(python3 - <<EOF
+import yaml
+with open("$CONFIG") as f:
+    cfg = yaml.safe_load(f)
+required = ['size', 'max_cells', 'density_param', 'green_param', 'uhei_param', 'fragility_macro', 'alpha_uhei', 'streets_param', 'yard_param', 'res_name']
+for key in required:
+    if key not in cfg:
+        raise SystemExit(f"Missing required config key: {key}")
+    print(f"{key.upper()}='{cfg[key]}'")
+EOF
+)"
 fi
 
 # ============================
@@ -71,7 +107,7 @@ fi
 # ============================
 
 echo "Updating config files..."
-python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --uhei_param "$UHEI_PARAM" --fragility_macro "$FRAGILITY_MACRO" --alpha_uhei "$ALPHA_UHEI" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
 echo ""
 
 # ============================
@@ -79,11 +115,11 @@ echo ""
 # ============================
 
 echo "Running preprocessing.py..."
-python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM"
+python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --uhei_param "$UHEI_PARAM" --fragility_macro "$FRAGILITY_MACRO"
 echo ""
 
 echo "Running data_parser.py..."
-python3 src/data_parser.py --size "$SIZE" --max_cells "$MAX_CELLS" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+python3 src/data_parser.py --size "$SIZE" --max_cells "$MAX_CELLS" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM" --alpha_uhei "$ALPHA_UHEI"
 echo ""
 
 echo "Running solver.py..."

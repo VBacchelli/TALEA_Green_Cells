@@ -21,7 +21,7 @@ show_help() {
     echo ""
     echo "Example:"
     echo ">> run_pipeline.sh --config default_config.yaml"
-    echo ">> run_pipeline.sh --size full --max_cells 30 --density_param 0.7 --green_param 0.3 --streets_param 0.5 --yard_param 1.0 --res_name result_my_spec"
+    echo ">> run_pipeline.sh --size full --max_cells 30 --density_param 0.7 --green_param 0.25 --streets_param 0.25 --uhei_param 0.25 --fragility_macro 0.25 --yard_param 1.0 --res_name result_my_spec"
     exit 0
 }
 
@@ -32,8 +32,11 @@ show_help() {
 CONFIG=""
 SIZE="center"
 MAX_CELLS=20
-DENSITY_PARAM=0.5
-GREEN_PARAM=0.5
+DENSITY_PARAM=0.25
+GREEN_PARAM=0.25
+UHEI_PARAM=0.25
+FRAGILITY_MACRO=0.25
+ALPHA_UHEI=0.5
 STREETS_PARAM=0.2
 YARD_PARAM=0.8
 RES_NAME="result"
@@ -54,7 +57,7 @@ while [[ "$#" -gt 0 ]]; do
             CONFIG="$2"
             shift
             ;;
-        --size|--max_cells|--density_param|--green_param|--streets_param|--yard_param|--res_name)
+        --size|--max_cells|--density_param|--green_param|--uhei_param|--fragility_macro|--streets_param|--yard_param|--res_name)
             if [[ -n "$CONFIG" ]]; then
                 echo "Error: --config cannot be combined with other parameters like $1"
                 exit 1
@@ -90,7 +93,7 @@ if [[ -n "$CONFIG" ]]; then
 import yaml
 with open("$CONFIG") as f:
     cfg = yaml.safe_load(f)
-required = ['size', 'max_cells', 'density_param', 'green_param', 'streets_param', 'yard_param', 'res_name']
+required = ['size', 'max_cells', 'density_param', 'green_param', 'uhei_param', 'fragility_macro', 'alpha_uhei', 'streets_param', 'yard_param', 'res_name']
 for key in required:
     if key not in cfg:
         raise SystemExit(f"Missing required config key: {key}")
@@ -104,7 +107,7 @@ fi
 # ============================
 
 echo "Updating config files..."
-python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --uhei_param "$UHEI_PARAM" --fragility_macro "$FRAGILITY_MACRO" --alpha_uhei "$ALPHA_UHEI" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
 echo ""
 
 # ============================
@@ -116,11 +119,11 @@ python3 src/grid_creation.py --size "$SIZE"
 echo ""
 
 echo "Running preprocessing.py..."
-python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM"
+python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --uhei_param "$UHEI_PARAM" --fragility_macro "$FRAGILITY_MACRO"
 echo ""
 
 echo "Running data_parser.py..."
-python3 src/data_parser.py --size "$SIZE" --max_cells "$MAX_CELLS" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+python3 src/data_parser.py --size "$SIZE" --max_cells "$MAX_CELLS" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM" --alpha_uhei "$ALPHA_UHEI"
 echo ""
 
 echo "Running solver.py..."
