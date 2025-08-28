@@ -8,7 +8,7 @@ import argparse
 
 WORKING_DIR_PATH = Path.cwd()
 SRC_DIR_PATH = WORKING_DIR_PATH.joinpath("src")
-INSTANCE_DIR_PATH = SRC_DIR_PATH.joinpath("Minizinc")
+INSTANCE_DIR_PATH = SRC_DIR_PATH.joinpath("Minizinc", "instances")
 PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
 CENTER_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
 FULL_GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
@@ -18,17 +18,20 @@ from warnings import filterwarnings
 filterwarnings("ignore")
 
 
-def parse(size, top_k_param, streets_param, yard_param):
+def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei):
     """
     Generates the parsed file in the Minizinc data format from the input datasets, specifying the output directory and the parameters of the algorithm.
 
     Input:
-    - size: str, flag to run the model on the city center or on the entire cityscape
-    - top_k_param: int, maximum number of cells that can be placed
-    - streets_param: float, weight for the available street space
-    - yard_param: float, weight for the available yard space
+    - size: str, specifying whether to run the model on the city center or on the entire cityscape
+    - model: str, choice of the model to run
+    - top_k_param: int, maximum number of cells to be placed
+    - beta_streets: float, weight for the available street space
+    - alpha_yards: float, weight for the utility of the yard space
+    - alpha_uhei: float, weight for the UHEI influence in the diff model
 
     """
+
     # Set the data directory based on the size parameter
     if size == "center":
         PATH = CENTER_GRID_DIR_PATH
@@ -59,8 +62,8 @@ def parse(size, top_k_param, streets_param, yard_param):
     green_space = np.zeros((num_cells, ), dtype=float)
     street_space = np.zeros((num_cells, ), dtype=float)
     ext_space = np.zeros((num_cells, ), dtype=float)
-    num_areas = np.zeros((num_cells, ), dtype=float)     # number of external areas in each cell
-    num_trees = np.zeros((num_cells, ), dtype=float)     # number of trees in each cell
+    num_areas = np.zeros((num_cells, ), dtype=float)
+    num_trees = np.zeros((num_cells, ), dtype=float)
     for idx, cell_id in enumerate(gdf_tot.index):
         row = gdf_tot.loc[cell_id]
         green_space[idx] = row['green_area'] + 1
@@ -69,26 +72,87 @@ def parse(size, top_k_param, streets_param, yard_param):
         ext_space[idx] = row['free_space_area']
         num_areas[idx] = float(row['free_space_number']) + 1 if street_space[idx] > 0 else float(row['free_space_number'])
         num_trees[idx] = float(row['tree_number']) + 1
-        
-    instance = (num_cells, 
-                top_k_param, 
-                streets_param, 
-                yard_param, 
-                street_space, 
-                ext_space, 
-                green_space, 
-                num_areas, 
-                num_trees, 
-                macro_factors,
-                full_space)
+    
+    if model == "std":
+        instance = (num_cells, 
+                    top_k_param, 
+                    beta_streets, 
+                    alpha_yards, 
+                    street_space, 
+                    ext_space, 
+                    green_space, 
+                    num_areas, 
+                    num_trees, 
+                    macro_factors,
+                    full_space)
+    
+    elif model == "diff":
+        uhei = np.zeros((num_cells, ), dtype=float)
+        for idx, cell_id in enumerate(gdf_tot.index):
+            row = gdf_tot.loc[cell_id]
+            uhei[idx] = row['weighted_uhei']
+        instance = (num_cells, 
+                    top_k_param, 
+                    beta_streets, 
+                    alpha_yards, 
+                    alpha_uhei, 
+                    street_space, 
+                    ext_space, 
+                    green_space, 
+                    num_areas, 
+                    num_trees, 
+                    macro_factors,
+                    full_space, 
+                    uhei)
+    
+    elif model == "inverse_uhei":
+        # UHEI normalization factors (computed from the data available)
+        inverse_uhei_5p = gdf_tot['inverse_uhei'].quantile(0.05)
+        inverse_uhei_95p = gdf_tot['inverse_uhei'].quantile(0.95)
+        instance = (num_cells, 
+                    top_k_param, 
+                    beta_streets, 
+                    alpha_yards, 
+                    inverse_uhei_95p, 
+                    inverse_uhei_5p, 
+                    street_space, 
+                    ext_space, 
+                    green_space, 
+                    num_areas, 
+                    num_trees, 
+                    macro_factors,
+                    full_space)
+    
+    elif model == "ndvi":
+        # NDVI normalization factors (choosen according to the values used for the collection)
+        ndvi_norm_max = 0.8
+        ndvi_norm_min = 0.0
+        ndvi = np.zeros((num_cells, ), dtype=float)
+        for idx, cell_id in enumerate(gdf_tot.index):
+            row = gdf_tot.loc[cell_id]
+            ndvi[idx] = row['weighted_ndvi']
+        instance = (num_cells, 
+                    top_k_param, 
+                    beta_streets, 
+                    alpha_yards, 
+                    ndvi_norm_max,
+                    ndvi_norm_min, 
+                    street_space, 
+                    ext_space, 
+                    green_space, 
+                    num_areas, 
+                    num_trees, 
+                    macro_factors,
+                    full_space, 
+                    ndvi)
 
     # Create the output directory if it doesn't exist
     if not Path.exists(INSTANCE_DIR_PATH):
         INSTANCE_DIR_PATH.mkdir(parents=True)
     
     # File creation
-    output_text = utils.to_dzn(instance)
-    INSTANCE_PATH = INSTANCE_DIR_PATH.joinpath("instance.dzn")
+    output_text = utils.to_dzn(model, instance)
+    INSTANCE_PATH = INSTANCE_DIR_PATH.joinpath(f"{model}_instance.dzn")
     with open(INSTANCE_PATH, "w") as output_file:
        output_file.write(output_text)
 
@@ -96,21 +160,30 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generates the parsed file in the Minizinc data format from the input datasets, specifying the output directory and the parameters of the algorithm.")
     parser.add_argument("--size", 
                         type=str, 
-                        default="center", 
+                        default="full", 
                         choices=["center", "full"], 
                         help="Whether to run the model on the city center or on the entire cityscape.")
+    parser.add_argument("--model", 
+                        type=str, 
+                        default="std", 
+                        choices=["std", "diff", "inverse_uhei", "ndvi"], 
+                        help="Choice of the model to run.")
     parser.add_argument("--max_cells", 
                         type=int, 
-                        default=20, 
+                        default=100, 
                         help="Maximum number of cells to be placed.")
-    parser.add_argument("--streets_param", 
+    parser.add_argument("--beta_streets", 
                         type=float, 
                         default=0.2, 
                         help="Weight for the available street space.")
-    parser.add_argument("--yard_param", 
+    parser.add_argument("--alpha_yards", 
                         type=float, 
                         default=0.8, 
                         help="Weight for the utility of the yard space.")
+    parser.add_argument("--alpha_uhei",
+                        type=float, 
+                        default=0.0, 
+                        help="Weight for the UHEI influence in the diff model. If you choose another model this parameter is ignored.")
+    
     args = parser.parse_args()
-
-    parse(args.size, args.max_cells, args.streets_param, args.yard_param)
+    parse(args.size, args.model, args.max_cells, args.beta_streets, args.alpha_yards, args.alpha_uhei)

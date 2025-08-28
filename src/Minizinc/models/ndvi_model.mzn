@@ -19,8 +19,6 @@ array[1..len] of float: ndvi;
 float: max_street = max(street_space);
 float: max_yard = max(ext_space);
 float: max_areas = max(num_areas);
-float: max_trees = max(num_trees);
-float: max_green = max(green_space);
 
 % ----- Decision Variables ----- %
 array[1..len] of var 0..max_street: street_cells;
@@ -29,7 +27,7 @@ array[1..len] of var float: utility;
 
 % ----- Constraints ----- %
 constraint forall(i in 1..len)(
-	utility[i] = macro_factors[i] * ((0.5 + ((((street_cells[i] + yard_cells[i]) / full_space[i]) * (ndvi_norm_max - ndvi_norm_min)^2) * 0.5)) + ndvi_norm_min) / ndvi[i]
+	utility[i] = (macro_factors[i] / (ndvi[i] + (num_areas[i] / max_areas))) * ((0.5 + ((((street_cells[i] + yard_cells[i]) / full_space[i]) * (ndvi_norm_max - ndvi_norm_min)^2) * 0.5)) + ndvi_norm_min)
 );
 
 constraint forall(i in 1..len)(

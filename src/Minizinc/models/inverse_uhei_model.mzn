@@ -14,7 +14,6 @@ array[1..len] of float: num_areas;
 array[1..len] of float: num_trees;
 array[1..len] of float: macro_factors;
 array[1..len] of float: full_space;
-array[1..len] of float: inverse_uhei;
 
 float: max_street = max(street_space);
 float: max_yard = max(ext_space);
@@ -29,7 +28,7 @@ array[1..len] of var float: utility;
 
 % ----- Constraints ----- %
 constraint forall(i in 1..len)(
-	utility[i] = macro_factors[i] * ((street_cells[i] + yard_cells[i]) / full_space[i]) * (inverse_uhei_95p - inverse_uhei_5p) / ((green_space[i] / max_green) + (num_trees[i] / max_trees))
+	utility[i] = (macro_factors[i] / ((num_areas[i] / max_areas) + (green_space[i] / max_green) + (num_trees[i] / max_trees))) * ((street_cells[i] + yard_cells[i]) / full_space[i]) * (inverse_uhei_95p - inverse_uhei_5p)
 );
 
 constraint forall(i in 1..len)(

@@ -8,7 +8,7 @@ RAW_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "raw_data")
 PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
 
 
-def to_dzn(instance):
+def to_dzn(model, instance):
     """
     Takes the problem instance and converts it to a string in the format required by MiniZinc.
     
@@ -19,7 +19,14 @@ def to_dzn(instance):
 
     """
 
-    num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space = instance
+    if model == 'std':
+        num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space = instance
+    elif model == 'diff':
+        num_cells, top_k, beta_streets, alpha_yard, alpha_uhei, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space, uhei = instance
+    elif model == 'inverse_uhei':
+        num_cells, top_k, beta_streets, alpha_yard, inverse_uhei_95p, inverse_uhei_5p, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space = instance
+    elif model == 'ndvi':
+        num_cells, top_k, beta_streets, alpha_yard, ndvi_norm_max, ndvi_norm_min, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space, ndvi = instance
 
     num_cells_str = 'len = ' + str(num_cells) + ';\n'
     top_k_str = 'top_k = ' + str(top_k) + ';\n'
@@ -49,8 +56,35 @@ def to_dzn(instance):
             num_trees_str += str(num_trees[i]) + ', '
             macro_factors_str += str(macro_factors[i]) + ', '
             full_space_str += str(full_space[i]) + ', '
+    
+    if model == 'std':
+        text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str
 
-    text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str
+    elif model == 'diff':
+        alpha_uhei_str = 'alpha_uhei = ' + str(alpha_uhei) + ';\n'
+        uhei_str = 'uhei = [ '
+        for i in range(num_cells):
+            if i == num_cells - 1:
+                uhei_str += str(uhei[i]) + ' ];\n'
+            else:
+                uhei_str += str(uhei[i]) + ', '
+        text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + alpha_uhei_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str + uhei_str
+
+    elif model == 'inverse_uhei':
+        inverse_uhei_95p_str = 'inverse_uhei_95p = ' + str(inverse_uhei_95p) + ';\n'
+        inverse_uhei_5p_str = 'inverse_uhei_5p = ' + str(inverse_uhei_5p) + ';\n'
+        text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + inverse_uhei_95p_str + inverse_uhei_5p_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str
+
+    elif model == 'ndvi':
+        ndvi_norm_max_str = 'ndvi_norm_max = ' + str(ndvi_norm_max) + ';\n'
+        ndvi_norm_min_str = 'ndvi_norm_min = ' + str(ndvi_norm_min) + ';\n'
+        ndvi_str = 'ndvi = [ '
+        for i in range(num_cells):
+            if i == num_cells - 1:
+                ndvi_str += str(ndvi[i]) + ' ];\n'
+            else:
+                ndvi_str += str(ndvi[i]) + ', '
+        text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + ndvi_norm_max_str + ndvi_norm_min_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str + ndvi_str
     return text
 
 def density_per_area(gdf_area, df_dens):

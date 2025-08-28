@@ -5,23 +5,27 @@ show_help() {
     echo "Usage: run_pipeline [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --config FILE          YAML config file (mutually exclusive with all other options)"
-    echo "  --size str             Map size: 'center' or 'full' (default: center)"
+    echo "  --config FILE          YAML config file with model profiles (std/diff/inverse_uhei/ndvi)."
+    echo "                         May be combined ONLY with --model to pick a profile."
+    echo "  --size str             Map size: 'center' or 'full' (default: full)"
+    echo "  --model str            Model type: 'std', 'diff', 'inverse_uhei' or 'ndvi' (default: std)"
     echo "  --max_cells int        Maximum number of cells (default: 20)"
-    echo "  --density_param float  Population density weight (default: 0.5)"
-    echo "  --green_param float    Green space weight (default: 0.5)"
-    echo "  --streets_param float  Street space weight (default: 0.2)"
-    echo "  --yard_param float     Yard space weight (default: 0.8)"
+    echo "  --density_param float  [Macro] Population density weight (default: 0.33)"
+    echo "  --green_param float    [Macro] Green space weight (default: 0.33)"
+    echo "  --uhei_param float     [Macro] UHEI weight (default: 0.34)"
+    echo "  --beta_streets float   [Micro] Street space weight (default: 0.2)"
+    echo "  --alpha_yards float    [Micro] Yard space weight (default: 0.8)"
+    echo "  --alpha_uhei float     [Micro] UHEI weight in the diff model, ignored for the other models (default: 0.0)"
     echo "  --res_name str         Result name (default: result)"
     echo "  --help                 Show this help message"
     echo ""
     echo "Notes:"
-    echo "- All float parameters should be in the range [0, 1]."
-    echo "- The density_param and green_param should sum to 1."
+    echo "- All float parameters must be in the range [0, 1]."
+    echo "- The macro parameters density_param, green_param and uhei_param must sum to 1."
     echo ""
-    echo "Example:"
-    echo ">> run_pipeline.sh --config default_config.yaml"
-    echo ">> run_pipeline.sh --size full --max_cells 30 --density_param 0.7 --green_param 0.3 --streets_param 0.5 --yard_param 1.0 --res_name result_my_spec"
+    echo "Examples:"
+    echo ">> run_pipeline --config configs.yaml --model diff"
+    echo ">> run_pipeline --size full --model inverse_uhei --max_cells 70 --density_param 0.5 --green_param 0.3 --uhei_param 0.2 --beta_streets 0.5 --alpha_yards 1.0 --res_name result_my_spec"
     exit 0
 }
 
@@ -30,12 +34,15 @@ show_help() {
 # ============================
 
 CONFIG=""
-SIZE="center"
+SIZE="full"
+MODEL="std"
 MAX_CELLS=20
-DENSITY_PARAM=0.5
-GREEN_PARAM=0.5
-STREETS_PARAM=0.2
-YARD_PARAM=0.8
+DENSITY_PARAM=0.33
+GREEN_PARAM=0.33
+UHEI_PARAM=0.34
+BETA_STREETS=0.2
+ALPHA_YARDS=0.8
+ALPHA_UHEI=0.0
 RES_NAME="result"
 
 OTHER_ARGS_SEEN=0
@@ -54,9 +61,13 @@ while [[ "$#" -gt 0 ]]; do
             CONFIG="$2"
             shift
             ;;
-        --size|--max_cells|--density_param|--green_param|--streets_param|--yard_param|--res_name)
+        --model)
+            MODEL="$2"
+            shift
+            ;;
+        --size|--max_cells|--density_param|--green_param|--uhei_param|--beta_streets|--alpha_yards|--alpha_uhei|--res_name)
             if [[ -n "$CONFIG" ]]; then
-                echo "Error: --config cannot be combined with other parameters like $1"
+                echo "Error: --config cannot be combined with other parameters like $1 (only --model is allowed with --config)."
                 exit 1
             fi
             OTHER_ARGS_SEEN=1
@@ -75,11 +86,11 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # ============================
-# Load config if provided
+# Load config profile if provided
 # ============================
 
 if [[ -n "$CONFIG" ]]; then
-    echo "Loading config from $CONFIG..."
+    echo "Loading '$MODEL' profile from $CONFIG..."
 
     if [[ ! -f "$CONFIG" ]]; then
         echo "Error: Config file '$CONFIG' does not exist."
@@ -87,14 +98,48 @@ if [[ -n "$CONFIG" ]]; then
     fi
 
     eval "$(python3 - <<EOF
-import yaml
-with open("$CONFIG") as f:
-    cfg = yaml.safe_load(f)
-required = ['size', 'max_cells', 'density_param', 'green_param', 'streets_param', 'yard_param', 'res_name']
-for key in required:
-    if key not in cfg:
-        raise SystemExit(f"Missing required config key: {key}")
-    print(f"{key.upper()}='{cfg[key]}'")
+import sys, yaml
+
+cfg_path = "$CONFIG"
+model = "$MODEL"
+
+with open(cfg_path, 'r') as f:
+    data = yaml.safe_load(f) or {}
+
+if not isinstance(data, dict):
+    raise SystemExit("Error: Config file must contain a mapping of model profiles.")
+
+if model not in data:
+    available = ", ".join(sorted(data.keys()))
+    raise SystemExit(f"Error: Model profile '{model}' not found in config. Available: {available}")
+
+section = data[model] or {}
+required = ['size','max_cells','density_param','green_param','uhei_param','beta_streets','alpha_yards','alpha_uhei','res_name']
+
+missing = [k for k in required if k not in section]
+if missing:
+    raise SystemExit(f"Error: Missing required keys in '{model}' profile: {', '.join(missing)}")
+
+# Emit shell assignments
+def emit(k, v):
+    # Preserve strings and numbers safely
+    if isinstance(v, bool):
+        print(f"{k.upper()}='{str(v).lower()}'")
+    else:
+        print(f"{k.upper()}='{v}'")
+
+emit('size', section['size'])
+emit('max_cells', section['max_cells'])
+emit('density_param', section['density_param'])
+emit('green_param', section['green_param'])
+emit('uhei_param', section['uhei_param'])
+emit('beta_streets', section['beta_streets'])
+emit('alpha_yards', section['alpha_yards'])
+emit('alpha_uhei', section['alpha_uhei'])
+emit('res_name', section['res_name'])
+
+# Also emit MODEL so downstream steps see the chosen profile name
+print(f"MODEL='{model}'")
 EOF
 )"
 fi
@@ -104,7 +149,17 @@ fi
 # ============================
 
 echo "Updating config files..."
-python3 config/update_config.py --size "$SIZE" --max_cells "$MAX_CELLS" --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+python3 config/update_config.py \
+  --size "$SIZE" \
+  --model "$MODEL" \
+  --max_cells "$MAX_CELLS" \
+  --density_param "$DENSITY_PARAM" \
+  --green_param "$GREEN_PARAM" \
+  --uhei_param "$UHEI_PARAM" \
+  --beta_streets "$BETA_STREETS" \
+  --alpha_yards "$ALPHA_YARDS" \
+  --alpha_uhei "$ALPHA_UHEI" \
+  --res_name "$RES_NAME"
 echo ""
 
 # ============================
@@ -116,15 +171,15 @@ python3 src/grid_creation.py --size "$SIZE"
 echo ""
 
 echo "Running preprocessing.py..."
-python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM"
+python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --uhei_param "$UHEI_PARAM"
 echo ""
 
 echo "Running data_parser.py..."
-python3 src/data_parser.py --size "$SIZE" --max_cells "$MAX_CELLS" --streets_param "$STREETS_PARAM" --yard_param "$YARD_PARAM"
+python3 src/data_parser.py --size "$SIZE" --model "$MODEL" --max_cells "$MAX_CELLS" --beta_streets "$BETA_STREETS" --alpha_yards "$ALPHA_YARDS" --alpha_uhei "$ALPHA_UHEI"
 echo ""
 
 echo "Running solver.py..."
-python3 src/solver.py --size "$SIZE" --res_name "$RES_NAME"
+python3 src/solver.py --size "$SIZE" --model "$MODEL" --res_name "$RES_NAME"
 echo ""
 
 echo "Pipeline completed successfully!"

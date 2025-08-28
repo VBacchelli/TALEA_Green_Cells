@@ -1,7 +1,43 @@
-size: full
-max_cells: 50
-density_param: 0.1
-green_param: 0.9
-streets_param: 0.2
-yard_param: 0.8
-res_name: higher_green
+std:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 1.0
+  uhei_param: 0.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: higher_green
+
+diff:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 1.0
+  uhei_param: 0.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.5
+  res_name: higher_green
+
+inverse_uhei:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 1.0
+  uhei_param: 0.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: higher_green
+
+ndvi:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 1.0
+  uhei_param: 0.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: higher_green

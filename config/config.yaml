@@ -1,6 +1,10 @@
 size: full
-max_cells: 20
-density_param: 0.5
-green_param: 0.5
-streets_param: 0.4
-yard_param: 0.8
+model: ndvi
+max_cells: 100
+density_param: 0.33
+green_param: 0.33
+uhei_param: 0.34
+beta_streets: 0.2
+alpha_yards: 0.0
+alpha_uhei: 0.0
+res_name: no_yard
