@@ -171,13 +171,18 @@ function stripExt(name = "") {
   return i > 0 ? name.slice(0, i) : name || "Layer";
 }
 
+function normalizeGroupName(g) {
+  const name = (g || "").trim();
+  return name.length ? name : "Ungrouped";
+}
+
 /* -------------------- Component -------------------- */
 
 export default function SimpleMap() {
   const mapRef = useRef(null);
   const layerRefs = useRef(new Map()); // id -> Leaflet layer instance
 
-  // layers: [{ id, name, data, visible, colorMode, color, opacity, classify, numericFields }]
+  // layers: [{ id, name, data, visible, colorMode, color, opacity, classify, numericFields, group }]
   const [layers, setLayers] = useState([]);
 
   // Sidebar visibility
@@ -214,6 +219,7 @@ export default function SimpleMap() {
           opacity: DEFAULT_OPACITY,
           numericFields,
           classify: { ...seeded, autoFromBase: true },
+          group: "Ungrouped", // NEW: default group
         },
       ]);
     } catch (err) {
@@ -229,6 +235,20 @@ export default function SimpleMap() {
   const toggleVisible = (id) =>
     setLayers((prev) =>
       prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
+    );
+
+  // NEW: explicitly set a single layer's visibility
+  const setLayerVisible = (id, visible) =>
+    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, visible } : l)));
+
+  // NEW: set visibility for a whole group
+  const setGroupVisible = (groupName, visible) =>
+    setLayers((prev) =>
+      prev.map((l) =>
+        normalizeGroupName(l.group) === normalizeGroupName(groupName)
+          ? { ...l, visible }
+          : l
+      )
     );
 
   const changeColorMode = (id, mode) =>
@@ -289,6 +309,12 @@ export default function SimpleMap() {
 
   const renameLayer = (id, name) =>
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, name } : l)));
+
+  // NEW: change a layer's group
+  const changeGroup = (id, group) =>
+    setLayers((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, group: normalizeGroupName(group) } : l))
+    );
 
   const changeClassField = (id, field) =>
     setLayers((prev) =>
@@ -481,6 +507,9 @@ export default function SimpleMap() {
         visible={sidebarVisible}
         onClose={() => setSidebarVisible(false)}
         onToggleVisible={toggleVisible}
+        onSetVisible={setLayerVisible}          
+        onSetGroupVisible={setGroupVisible}     
+        onChangeGroup={changeGroup}             
         onZoomTo={zoomToLayer}
         onRemove={removeLayer}
         onClearAll={clearAll}
