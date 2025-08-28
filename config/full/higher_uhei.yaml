@@ -1,0 +1,43 @@
+std:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 0.0
+  uhei_param: 1.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: higher_uhei
+
+diff:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 0.0
+  uhei_param: 1.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 1.0
+  res_name: higher_uhei
+
+inverse_uhei:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 0.0
+  uhei_param: 1.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: higher_uhei
+
+ndvi:
+  size: full
+  max_cells: 100
+  density_param: 0.0
+  green_param: 0.0
+  uhei_param: 1.0
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: higher_uhei

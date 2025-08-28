@@ -94,9 +94,88 @@ def save_layer(output_layer, layer_name, path, remove_attrs="geo_point_2d"):
     else:
         print(f"Failed to save layer: {writer.errorMessage()}")
 
+def compute_weighted_uhei(grid, uhei_layer):
+    """
+    Compute the weighted UHEI for each grid cell based on the intersection area with UHEI data.
+
+    Input:
+    - grid: QgsVectorLayer or pathlib.Path, the grid layer or path to the grid GeoJSON file
+    - uhei_layer: QgsVectorLayer or pathlib.Path, the UHEI layer or path to the GeoJSON file
+    Output:
+    - result: GeoDataFrame, containing the grid cells with their corresponding weighted UHEI values
+
+    """
+
+    grid_uhei = processing.run("native:fieldcalculator", {'INPUT':grid,'FIELD_NAME':'area_grid','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(grid_uhei, 'grid_uhei', PROCESSED_DATA_DIR_PATH)
+
+    # Weighted UHEI on the basis of the area computation
+    intersection_layer = processing.run("native:intersection", {'INPUT':grid_uhei,'OVERLAY':uhei_layer,'INPUT_FIELDS':[],'OVERLAY_FIELDS':['uhei'],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    intersection_layer = processing.run("native:fieldcalculator", {'INPUT':intersection_layer,'FIELD_NAME':'area_intersection','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    intersection_layer = processing.run("native:fieldcalculator", {'INPUT':intersection_layer,'FIELD_NAME':'weighted_uhei','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'area_intersection/area_grid*uhei','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(intersection_layer, 'intersection_layer_uhei', PROCESSED_DATA_DIR_PATH)
+
+    intersection = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("intersection_layer_uhei.geojson"))
+    grid_uhei = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("grid_uhei.geojson"))
+
+    id_col = 'id'
+    sum_col = 'weighted_uhei'
+
+    intersection = intersection.drop(['area_grid', 'area_intersection', 'uhei'], axis=1)
+    agg = {c: 'first' for c in intersection.columns if c not in [id_col, sum_col]}
+    agg[sum_col] = 'sum'
+
+    result = intersection.groupby(id_col, as_index=False).agg(agg)
+    geom_map = grid_uhei.set_index("id")["geometry"]
+    result["geometry"] = result["id"].map(geom_map)
+    result = gpd.GeoDataFrame(result, geometry='geometry', crs=intersection.crs)
+
+    return result
+
+def compute_weighted_ndvi(grid, ndvi_layer):
+    """
+    Compute the weighted NDVI for each grid cell based on the intersection area with NDVI data.
+
+    Input:
+    - grid: QgsVectorLayer or pathlib.Path, the grid layer or path to the grid GeoJSON file
+    - ndvi_layer: QgsVectorLayer or pathlib.Path, the NDVI index layer or path to the GeoJSON file
+    Output:
+    - result: GeoDataFrame, containing the grid cells with their corresponding weighted NDVI values
+
+    """
+
+    grid_ndvi = processing.run("native:fieldcalculator", {'INPUT':grid,'FIELD_NAME':'area_grid','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(grid_ndvi, 'grid_ndvi', PROCESSED_DATA_DIR_PATH)
+
+    # Weighted NDVI on the basis of the area computation
+    intersection_layer = processing.run("native:intersection", {'INPUT':grid_ndvi,'OVERLAY':ndvi_layer,'INPUT_FIELDS':[],'OVERLAY_FIELDS':['ndvi'],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    intersection_layer = processing.run("native:fieldcalculator", {'INPUT':intersection_layer,'FIELD_NAME':'area_intersection','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    intersection_layer = processing.run("native:fieldcalculator", {'INPUT':intersection_layer,'FIELD_NAME':'weighted_ndvi','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'area_intersection/area_grid*ndvi','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    save_layer(intersection_layer, 'intersection_layer_ndvi', PROCESSED_DATA_DIR_PATH)
+
+    intersection = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("intersection_layer_ndvi.geojson"))
+    grid_ndvi = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("grid_ndvi.geojson"))
+
+    id_col = 'id'
+    sum_col = 'weighted_ndvi'
+
+    intersection = intersection.drop(['area_grid', 'area_intersection', 'ndvi'], axis=1)
+    agg = {c: 'first' for c in intersection.columns if c not in [id_col, sum_col]}
+    agg[sum_col] = 'sum'
+
+    result = intersection.groupby(id_col, as_index=False).agg(agg)
+    geom_map = grid_ndvi.set_index("id")["geometry"]
+    result["geometry"] = result["id"].map(geom_map)
+    result = gpd.GeoDataFrame(result, geometry='geometry', crs=intersection.crs)
+
+    return result
+
 def streets_processing():
     """
     Deletion of the squares and the highway from the street data.
+
+    Output:
+    - streets: QgsVectorLayer, vector layer containing the cleaned street data
     
     """
 
@@ -169,23 +248,6 @@ def create_ferrovia(raw_data_path, processed_data_path):
     railway = railway[railway['DESCR'] == 'Reti ferroviare']
     railway.to_file(str(processed_data_path.joinpath('ferrovia.geojson')), driver='GeoJSON')
 
-    '''
-    binari_ferroviari = processing.run("native:reprojectlayer", {'INPUT':str(raw_data_path.joinpath('carta-tecnica-comunale-binari-ferroviari.fgb')),'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    binari_ferroviari = processing.run("native:buffer", {'INPUT':binari_ferroviari,'DISTANCE':15,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':True,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-
-    cigli_ferroviari = processing.run("native:reprojectlayer", {'INPUT':str(raw_data_path.joinpath('carta-tecnica-comunale-cigli-ferroviari.fgb')),'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    cigli_ferroviari = processing.run("native:buffer", {'INPUT':cigli_ferroviari,'DISTANCE':15,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':True,'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-
-    gdf = gpd.read_file(raw_data_path.joinpath('aree-statistiche.geojson'))
-    gdf = gdf[gdf["area_statistica"].isin(["SCALO MERCI SAN DONATO", "SCALO RAVONE"])]
-    gdf.to_file(processed_data_path.joinpath("ferrovia.geojson"), driver="GeoJSON")
-
-    ferrovia = processing.run("native:multiunion", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAYS':[binari_ferroviari, cigli_ferroviari],'OVERLAY_FIELDS_PREFIX':'','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    ferrovia = processing.run("native:dissolve", {'INPUT': ferrovia,'FIELD':[],'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    ferrovia = processing.run("native:reprojectlayer", {'INPUT':ferrovia,'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3857'),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    ferrovia = processing.run("native:deleteholes", {'INPUT':ferrovia,'MIN_AREA':10000,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    '''
-
     railway = processing.run("native:multidifference", {'INPUT':str(processed_data_path.joinpath('ferrovia.geojson')),'OVERLAYS':[str(raw_data_path.joinpath('rifter_edif_pl.geojson')), str(processed_data_path.joinpath('verde.gpkg'))],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     return railway
 
@@ -208,7 +270,7 @@ def main(bologna_size):
         area_abitata = processing.run("native:clip", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'OVERLAY':str(PROCESSED_DATA_DIR_PATH.joinpath('localita_abitative.geojson')),'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
         save_layer(area_abitata, 'area_abitata_full', PROCESSED_DATA_DIR_PATH)
         area_abitata = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'))
-        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO", "CAAB"])]
+        area_abitata = area_abitata[~ area_abitata["area_statistica"].isin(["RIGOSA", "LAVINO DI MEZZO", "AEROPORTO", "BARGELLINO", "VIA DEL VIVAIO", "LA BIRRA", "LA NOCE", "TIRO A SEGNO", "LAGHETTI DEL ROSARIO", "SAVENA ABBANDONATO", "MULINO DEL GOMITO", "CADRIANO-CALAMOSCO", "FIERA", "STRADELLI GUELFI", "LUNGO SAVENA", "OSPEDALE BELLARIA", "MONTE DONATO", "PONTE SAVENA-LA BASTIA", "PADERNO", "RAVONE", "VIA DEL GENIO", "SAN LUCA", "LUNGO RENO", "CAAB"])]
         area_abitata.to_file(PROCESSED_DATA_DIR_PATH.joinpath('area_abitata_full.geojson'), driver="GeoJSON")
 
         # Create the grid for the entire city
@@ -254,11 +316,18 @@ def main(bologna_size):
     free_space = processing.run("native:multidifference", {'INPUT':str(PROCESSED_DATA_DIR_PATH.joinpath('free_space.geojson')),'OVERLAYS':[verde, str(RAW_DATA_DIR_PATH.joinpath('aree-stradali.geojson')), str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), railway],'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     free_space = processing.run("native:multiparttosingleparts", {'INPUT':free_space,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(free_space, 'free_space', PROCESSED_DATA_DIR_PATH)
-
+    
     # Compute how many areas each elements occupy inside the cells
     grid_with_areas = processing.run("native:calculatevectoroverlaps", {'INPUT':grid_bologna,'LAYERS':[verde, str(RAW_DATA_DIR_PATH.joinpath('rifter_edif_pl.geojson')), str(PROCESSED_DATA_DIR_PATH.joinpath("aree-stradali-modified.geojson")), free_space, railway],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
     grid_with_areas = processing.run("native:countpointsinpolygon", {'POLYGONS':grid_with_areas,'POINTS':free_space,'WEIGHT':'','CLASSFIELD':'','FIELD':'free_space_number','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
-    save_layer(grid_with_areas, 'grid_with_areas', GRID_DIR_PATH)
+    
+    # UHEI and NDVI computation
+    uhei_layer = processing.run("native:fieldcalculator", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('indexes', 'urban_heat_exposure_index.geojson')),'FIELD_NAME':'uhei','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'to_real(value)','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    ndvi_layer = processing.run("native:fieldcalculator", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('indexes', 'ndvi_mean.geojson')),'FIELD_NAME':'ndvi','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'to_real(value)','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    grid_with_areas = compute_weighted_uhei(grid_with_areas, uhei_layer)
+    grid_with_areas.to_file(str(GRID_DIR_PATH.joinpath("grid_with_areas.geojson")), driver="GeoJSON")
+    grid_with_areas = compute_weighted_ndvi(str(GRID_DIR_PATH.joinpath("grid_with_areas.geojson")), ndvi_layer)
+    grid_with_areas.to_file(str(GRID_DIR_PATH.joinpath("grid_with_areas.geojson")), driver="GeoJSON")
 
     # Compute the number of tree outside the green areas
     area_not_green = processing.run("native:difference", {'INPUT':grid_bologna,'OVERLAY':verde,'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
@@ -268,6 +337,8 @@ def main(bologna_size):
     # Integrate all the computed data in a single grid
     grid = gpd.read_file(GRID_DIR_PATH.joinpath('grid_with_areas.geojson'))
     trees = gpd.read_file(GRID_DIR_PATH.joinpath('trees_outside_green.geojson'))[['id', 'tree_number']]
+    trees = trees[~trees['id'].isin(list(set(trees['id']) - set(grid['id'])))]
+
     final_grid = grid.merge(trees, how='outer', on='id').fillna(0)
     final_grid = final_grid.rename(columns={
         'Single parts_area': 'free_space_area',
@@ -280,19 +351,34 @@ def main(bologna_size):
         'rifter_edif_pl_pc': 'buildings_pc',
         'aree-stradali-modified_area': 'road_area',
         'aree-stradali-modified_pc': 'road_pc',
+        'weighted_uhei_sum': 'weighted_uhei',
+        'weighted_ndvi_sum': 'weighted_ndvi',
     })
+    uhei_max = final_grid['weighted_uhei'].max()
+    final_grid['inverse_uhei'] = uhei_max - final_grid['weighted_uhei']
     final_grid.to_file(GRID_DIR_PATH.joinpath("final_grid.geojson"), driver="GeoJSON")
     
+
     # Compute the green area in each statistical area
     aree_statistiche = processing.run("native:fieldcalculator", {'INPUT':str(RAW_DATA_DIR_PATH.joinpath('aree-statistiche.geojson')),'FIELD_NAME':'area','FIELD_TYPE':0,'FIELD_LENGTH':0,'FIELD_PRECISION':0,'FORMULA':'$area','OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     aree_statistiche = processing.run("native:calculatevectoroverlaps", {'INPUT':aree_statistiche,'LAYERS':[verde],'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})['OUTPUT']
+    
+    aree_statistiche = processing.run("native:joinbylocationsummary", {'INPUT':aree_statistiche,'PREDICATE':[0],'JOIN':uhei_layer,'JOIN_FIELDS':['uhei'],'SUMMARIES':[6],'DISCARD_NONMATCHING':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
+    aree_statistiche = processing.run("native:joinbylocationsummary", {'INPUT':aree_statistiche,'PREDICATE':[0],'JOIN':ndvi_layer,'JOIN_FIELDS':['ndvi'],'SUMMARIES':[6],'DISCARD_NONMATCHING':False,'OUTPUT':'TEMPORARY_OUTPUT'})['OUTPUT']
     save_layer(aree_statistiche, 'aree_statistiche_stat', PROCESSED_DATA_DIR_PATH)
+
+    aree_statistiche = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath('aree_statistiche_stat.geojson'))
+    aree_statistiche = aree_statistiche.rename(columns={
+        'uhei_mean': 'uhei',
+        'ndvi_mean': 'ndvi',
+    })
+    aree_statistiche.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_stat.geojson"), driver="GeoJSON")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extraction of information from data through GIS-based processing algorithms.")
     parser.add_argument("--size", 
                         type=str, 
-                        default="center", 
+                        default="full", 
                         choices=["center", "full"], 
                         help="Whether to run the model on the city center or on the entire cityscape.")
     args = parser.parse_args()

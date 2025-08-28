@@ -27,29 +27,32 @@ def density_estimation():
     df_pop['Densità'] = densities
     df_pop.to_csv(PROCESSED_DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=';', index=False)
 
-def macro_factors_computation(density_param=0.5, green_param=0.5):
+def macro_factors_computation(density_param=0.33, green_param=0.33, uhei_param=0.34):
     """
     Estimates the factor to be applied to the macro utility function for statitistical areas.
 
     Input:
-    - density_param: float, weight for the population density in the macro utility function (default 0.5)
-    - green_param: float, weight for the green space in the macro utility function (default 0.5)
+    - density_param: float, weight for the population density in the macro utility function (default 0.33)
+    - green_param: float, weight for the green space in the macro utility function (default 0.33)
+    - uhei_param: float, weight for the UHEI in the macro utility function (default 0.34)
 
     """
 
-    if density_param + green_param != 1.0:
-        raise ValueError("The sum of density_param and green_param must be equal to 1.0.")
+    if density_param + green_param + uhei_param != 1.0:
+        raise ValueError("The sum of density_param, green_param and uhei_param must be equal to 1.0.")
     else:
         gdf_area = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_stat.geojson"))
         df_dens = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=';')
         max_density = df_dens['Densità'].max()
+        max_uhei = gdf_area['uhei'].max()
         factors = []
         for row in gdf_area.itertuples():
             green_factor = 100.0 - row.verde_pc
             green_factor = green_factor / 100.0
             density = df_dens[df_dens['Codice Area Statistica'] == row.codice_area_statistica]['Densità'].values[0]
             density_factor = density / max_density
-            factors.append((density_param * density_factor) + (green_param * green_factor))
+            uhei_factor = row.uhei / max_uhei
+            factors.append((density_param * density_factor) + (green_param * green_factor) + (uhei_param * uhei_factor))
         gdf_area['macro_utility_factor'] = factors
         gdf_area.to_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro.geojson"), driver='GeoJSON')
 
@@ -57,13 +60,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess the data in order to adapt them to the model.")
     parser.add_argument("--density_param", 
                         type=float, 
-                        default=0.5, 
+                        default=0.33, 
                         help="Weight for the population density in the macro utility function.")
     parser.add_argument("--green_param", 
                         type=float, 
-                        default=0.5, 
+                        default=0.33, 
                         help="Weight for the green space in the macro utility function.")
+    parser.add_argument("--uhei_param", 
+                        type=float, 
+                        default=0.34, 
+                        help="Weight for the UHEI in the macro utility function.")
     args = parser.parse_args()
 
     density_estimation()
-    macro_factors_computation(args.density_param, args.green_param)
+    macro_factors_computation(args.density_param, args.green_param, args.uhei_param)
