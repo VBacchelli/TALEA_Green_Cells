@@ -502,7 +502,7 @@ export default function SimpleMap() {
       <LoadButton onLoad={handleLoad} />
       <DatasetMenu
         onLoad={handleLoad}
-        indexUrl="/datasets/index.json"   // public manifest path
+        indexUrl="/public/index.json"   // public manifest path
         initialOpen={false}
       />
 

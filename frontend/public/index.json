@@ -1,0 +1,112 @@
+{
+  "models": {
+    "diff": {
+      "description": "Datasets about global climate patterns, temperatures, and precipitation.",
+      "default": {
+        "path": "results/full/diff/default.geojson",
+        "description": "Average surface temperature anomalies worldwide."
+      },
+      "higher density": {
+        "path": "results/full/diff/higher_density.geojson",
+        "description": "Global precipitation measurements by region."
+      },
+      "higher green": {
+        "path": "results/full/diff/higher_green.geojson",
+        "description": "Atmospheric CO₂ concentration data."
+      },
+      "higher uhei": {
+        "path": "results/full/diff/higher_uhei.geojson",
+        "description": "Ocean heat content trends."
+      },
+      "no street": {
+        "path": "results/full/diff/no_street.geojson",
+        "description": "Glacier retreat and ice sheet data."
+      },
+      "no yard": {
+        "path": "results/full/diff/no_yard.geojson",
+        "description": "Extreme weather events dataset."
+      }
+    },
+    "inverse uhei": {
+      "description": "Datasets about global climate patterns, temperatures, and precipitation.",
+      "default": {
+        "path": "results/full/inverse_uhei/default.geojson",
+        "description": "Average surface temperature anomalies worldwide."
+      },
+      "higher density": {
+        "path": "results/full/inverse_uhei/higher_density.geojson",
+        "description": "Global precipitation measurements by region."
+      },
+      "higher green": {
+        "path": "results/full/inverse_uhei/higher_green.geojson",
+        "description": "Atmospheric CO₂ concentration data."
+      },
+      "higher uhei": {
+        "path": "results/full/inverse_uhei/higher_uhei.geojson",
+        "description": "Ocean heat content trends."
+      },
+      "no street": {
+        "path": "results/full/inverse_uhei/no_street.geojson",
+        "description": "Glacier retreat and ice sheet data."
+      },
+      "no yard": {
+        "path": "results/full/inverse_uhei/no_yard.geojson",
+        "description": "Extreme weather events dataset."
+      }
+    },
+    "ndvi": {
+      "description": "Datasets about global climate patterns, temperatures, and precipitation.",
+      "default": {
+        "path": "results/full/ndvi/default.geojson",
+        "description": "Average surface temperature anomalies worldwide."
+      },
+      "higher density": {
+        "path": "results/full/ndvi/higher_density.geojson",
+        "description": "Global precipitation measurements by region."
+      },
+      "higher green": {
+        "path": "results/full/ndvi/higher_green.geojson",
+        "description": "Atmospheric CO₂ concentration data."
+      },
+      "higher uhei": {
+        "path": "results/full/ndvi/higher_uhei.geojson",
+        "description": "Ocean heat content trends."
+      },
+      "no street": {
+        "path": "results/full/ndvi/no_street.geojson",
+        "description": "Glacier retreat and ice sheet data."
+      },
+      "no yard": {
+        "path": "results/full/ndvi/no_yard.geojson",
+        "description": "Extreme weather events dataset."
+      }
+    },
+    "std": {
+      "description": "Datasets about global climate patterns, temperatures, and precipitation.",
+      "default": {
+        "path": "results/full/std/default.geojson",
+        "description": "Average surface temperature anomalies worldwide."
+      },
+      "higher density": {
+        "path": "results/full/std/higher_density.geojson",
+        "description": "Global precipitation measurements by region."
+      },
+      "higher green": {
+        "path": "results/full/std/higher_green.geojson",
+        "description": "Atmospheric CO₂ concentration data."
+      },
+      "higher uhei": {
+        "path": "results/full/std/higher_uhei.geojson",
+        "description": "Ocean heat content trends."
+      },
+      "no street": {
+        "path": "results/full/std/no_street.geojson",
+        "description": "Glacier retreat and ice sheet data."
+      },
+      "no yard": {
+        "path": "results/full/std/no_yard.geojson",
+        "description": "Extreme weather events dataset."
+      }
+    }
+  }
+}

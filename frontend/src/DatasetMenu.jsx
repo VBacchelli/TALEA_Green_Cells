@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 export default function DatasetMenu({
   onLoad,                // (json, filename) => void
-  indexUrl = "/datasets/index.json",
+  indexUrl = "/public/index.json",
   initialOpen = false,
 }) {
   const [open, setOpen] = useState(initialOpen);
@@ -132,9 +132,8 @@ export default function DatasetMenu({
   const listItem = {
     display: "flex",
     alignItems: "center",
-    // justifyContent: "space-between",
     justifyContent: "flex-start",
-    gap: 8,
+    gap: 12, // a touch more spacing between label and button
     width: "100%",
     padding: "8px 10px",
     border: "none",
@@ -191,7 +190,7 @@ export default function DatasetMenu({
           style={btnBase}
           title="Pick a dataset from predefined models/options"
         >
-          {open ? "Hide Datasets" : "Datasets"}
+          {open ? "Hide Menu" : "Load Results"}
         </button>
       </div>
 
@@ -292,7 +291,7 @@ function ModelList({
                   padding: 0,
                   margin: 0,
                   cursor: "pointer",
-                  flex: "1 1 auto",
+                  // removed flex grow so the description button sits closer
                   textAlign: "left",
                   fontSize: 14,
                 }}
@@ -405,7 +404,7 @@ function OptionList({
                   padding: 0,
                   margin: 0,
                   cursor: "pointer",
-                  flex: "1 1 auto",
+                  // removed flex grow so the description button sits closer
                   textAlign: "left",
                   fontSize: 14,
                 }}
