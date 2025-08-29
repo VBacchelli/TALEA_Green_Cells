@@ -5,6 +5,7 @@ import L from "leaflet";
 
 import LoadButton from "./LoadButton";
 import LayerSidebar from "./LayerSidebar";
+import DatasetMenu from "./DatasetMenu"; // <-- NEW
 import {
   reprojectIfNeeded,
   styleByGeomType,
@@ -171,13 +172,18 @@ function stripExt(name = "") {
   return i > 0 ? name.slice(0, i) : name || "Layer";
 }
 
+function normalizeGroupName(g) {
+  const name = (g || "").trim();
+  return name.length ? name : "Ungrouped";
+}
+
 /* -------------------- Component -------------------- */
 
 export default function SimpleMap() {
   const mapRef = useRef(null);
   const layerRefs = useRef(new Map()); // id -> Leaflet layer instance
 
-  // layers: [{ id, name, data, visible, colorMode, color, opacity, classify, numericFields }]
+  // layers: [{ id, name, data, visible, colorMode, color, opacity, classify, numericFields, group }]
   const [layers, setLayers] = useState([]);
 
   // Sidebar visibility
@@ -214,6 +220,7 @@ export default function SimpleMap() {
           opacity: DEFAULT_OPACITY,
           numericFields,
           classify: { ...seeded, autoFromBase: true },
+          group: "Ungrouped", // default group
         },
       ]);
     } catch (err) {
@@ -222,13 +229,27 @@ export default function SimpleMap() {
     }
   };
 
-  // From LoadButton: (json, filename)
+  // From LoadButton or DatasetMenu: (json, filename)
   const handleLoad = (json, filename) => addLayer(json, filename);
 
   // Sidebar actions
   const toggleVisible = (id) =>
     setLayers((prev) =>
       prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
+    );
+
+  // explicitly set a single layer's visibility
+  const setLayerVisible = (id, visible) =>
+    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, visible } : l)));
+
+  // set visibility for a whole group
+  const setGroupVisible = (groupName, visible) =>
+    setLayers((prev) =>
+      prev.map((l) =>
+        normalizeGroupName(l.group) === normalizeGroupName(groupName)
+          ? { ...l, visible }
+          : l
+      )
     );
 
   const changeColorMode = (id, mode) =>
@@ -289,6 +310,11 @@ export default function SimpleMap() {
 
   const renameLayer = (id, name) =>
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, name } : l)));
+
+  const changeGroup = (id, group) =>
+    setLayers((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, group: normalizeGroupName(group) } : l))
+    );
 
   const changeClassField = (id, field) =>
     setLayers((prev) =>
@@ -399,7 +425,6 @@ export default function SimpleMap() {
     layer.bindPopup(html, { maxWidth: 300 });
   };
 
-  // Per-layer styling (single or classify)
   const pointToLayer = (layerCfg) => (feature, latlng) => {
     const mode = layerCfg.colorMode;
     const opacity = layerCfg.opacity;
@@ -421,7 +446,7 @@ export default function SimpleMap() {
   };
 
   const makeStyleFn = (layerCfg) => (feature) => {
-    const base = styleByGeomType(feature);
+    const base = styleByGeomType(feature); // keep same behavior
     const mode = layerCfg.colorMode;
     const opacity = layerCfg.opacity;
     let color = layerCfg.color;
@@ -449,8 +474,8 @@ export default function SimpleMap() {
         zoom={13}
         style={{ height: "100vh", width: "100vw" }}
         whenCreated={(map) => (mapRef.current = map)}
-        zoomSnap={0.4}   // allow steps of 0.1 instead of 1
-        zoomDelta={0.4}  // how much each scroll/pinch zoom changes
+        zoomSnap={0.4}
+        zoomDelta={0.4}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -475,12 +500,20 @@ export default function SimpleMap() {
 
       {/* Controls */}
       <LoadButton onLoad={handleLoad} />
+      <DatasetMenu
+        onLoad={handleLoad}
+        indexUrl="/datasets/index.json"   // public manifest path
+        initialOpen={false}
+      />
 
       <LayerSidebar
         layers={layers}
         visible={sidebarVisible}
         onClose={() => setSidebarVisible(false)}
         onToggleVisible={toggleVisible}
+        onSetVisible={setLayerVisible}
+        onSetGroupVisible={setGroupVisible}
+        onChangeGroup={changeGroup}
         onZoomTo={zoomToLayer}
         onRemove={removeLayer}
         onClearAll={clearAll}
@@ -493,7 +526,6 @@ export default function SimpleMap() {
         onRampChange={changeRamp}
       />
 
-      {/* Floating button to show sidebar when hidden */}
       {!sidebarVisible && (
         <button
           onClick={() => setSidebarVisible(true)}
