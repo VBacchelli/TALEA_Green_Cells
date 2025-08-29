@@ -8,7 +8,6 @@ ENV XDG_RUNTIME_DIR=/tmp/runtime-root
 # Set the working directory in the container
 WORKDIR /app
 
-
 # Install Minizinc
 RUN wget https://github.com/MiniZinc/MiniZincIDE/releases/download/2.8.4/MiniZincIDE-2.8.4-bundle-linux-x86_64.tgz &&\
 tar -xf MiniZincIDE-2.8.4-bundle-linux-x86_64.tgz &&\
@@ -28,14 +27,11 @@ pip3 install --break-system-packages -r requirements.txt
 # Make the pipeline script executable
 COPY run_pipeline /usr/local/bin/run_pipeline
 COPY run_model /usr/local/bin/run_model
-COPY run_all /usr/local/bin/run_all
 
 RUN sed -i 's/\r$//' /usr/local/bin/run_pipeline &&\
 chmod +x /usr/local/bin/run_pipeline
 RUN sed -i 's/\r$//' /usr/local/bin/run_model &&\
 chmod +x /usr/local/bin/run_model
-RUN sed -i 's/\r$//' /usr/local/bin/run_all &&\
-chmod +x /usr/local/bin/run_all
 
 # Keep the container alive
 CMD ["tail", "-f", "/dev/null"]

@@ -148,25 +148,13 @@ fi
 # Consistency check for size matching
 # ============================
 
-if [[ -n "$CONFIG" ]]; then
-    echo "Loading config from $CONFIG..."
-
-    if [[ ! -f "$CONFIG" ]]; then
-        echo "Error: Config file '$CONFIG' does not exist."
-        exit 1
-    fi
-
-    eval "$(python3 - <<EOF
-import yaml
-with open("$CONFIG") as f:
-    cfg = yaml.safe_load(f)
-required = ['size', 'max_cells', 'density_param', 'green_param', 'uhei_param', 'fragility_macro', 'alpha_uhei', 'streets_param', 'yard_param', 'res_name']
-for key in required:
-    if key not in cfg:
-        raise SystemExit(f"Missing required config key: {key}")
-    print(f"{key.upper()}='{cfg[key]}'")
-EOF
-)"
+echo "Checking consistency of size parameter..."
+echo ""
+PREV_SIZE=$(grep '^size:' config/config.yaml | awk '{print $2}')
+if [[ "$PREV_SIZE" != "$SIZE" ]]; then
+    echo "ERROR! The specified size $SIZE does not match the existing config size $PREV_SIZE. Please ensure that the size parameter is consistent with the existing configuration."
+    echo ""
+    exit 1
 fi
 
 # ============================
