@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 export default function DatasetMenu({
   onLoad,                // (json, filename) => void
-  indexUrl = "/public/index.json",
+  indexUrl = `${import.meta.env.BASE_URL}/index.json`,
   initialOpen = false,
 }) {
   const [open, setOpen] = useState(initialOpen);
