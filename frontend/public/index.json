@@ -1,7 +1,7 @@
 {
   "models": {
     "diff": {
-      "description": "The first utility is composed as the available space in the cell (yard_cells and street_cells) minus the elements which decreases the cells's utility (num_areas, green_space, num_trees, uhei). It's a really simple and intuitive function, which can be used as a comparison with the results for the others.",
+      "description": "The first utility is composed of the available space in the cell (yard_cells and street_cells) minus the elements which decreases the cells's utility (num_areas, green_space, num_trees, uhei). It's a really simple and intuitive function, which can be used as a comparison with the results for the others.",
       "default": {
         "path": "/results/full/diff/default.geojson",
         "description": "In the default configutations equal weights have been assigned to the different elements of the macro factor."
@@ -28,7 +28,7 @@
       }
     },
     "inverse uhei": {
-      "description": "This utility function is based on the Inverse UHEI, that spans in the positive real values' range. As expectable, contrarily to the UHEI, the lower is the index value, the higher is the heat island risk and it means also that the lower is the amount of vegetation present.",
+      "description": "This utility function focuses on lowering the heat island risk by evaluating the impact of the green on the Inverse UHEI (IUHEI). Contrarily to the UHEI, the lower is the index value, the higher is the risk and it means also that the lower is the amount of existing vegetation.",
       "default": {
         "path": "/results/full/inverse_uhei/default.geojson",
         "description": "In the default configutations equal weights have been assigned to the different elements of the macro factor."
@@ -55,7 +55,7 @@
       }
     },
     "ndvi": {
-      "description": "Datasets about global climate patterns, temperatures, and precipitation.",
+      "description": "This utility function maximizes the green impact on the NDVI, which is strictly correlated to the green and is a normalized index, so it is easier to manage with respect to the UHEI. The improvement given by new cells is scaled according to the observed data and the higher the value, the greener the cell is.",
       "default": {
         "path": "/results/full/ndvi/default.geojson",
         "description": "In the default configutations equal weights have been assigned to the different elements of the macro factor."

@@ -27,7 +27,7 @@ array[1..len] of var float: utility;
 
 % ----- Constraints ----- %
 constraint forall(i in 1..len)(
-	utility[i] = (macro_factors[i] / (ndvi[i] + (num_areas[i] / max_areas))) * ((0.5 + ((((street_cells[i] + yard_cells[i]) / full_space[i]) * (ndvi_norm_max - ndvi_norm_min)^2) * 0.5)) + ndvi_norm_min)
+	utility[i] = (macro_factors[i] / (ndvi[i] + (num_areas[i] / max_areas))) * (((0.5 + (0.5 * (street_cells[i] + yard_cells[i]) / full_space[i]))* (ndvi_norm_max - ndvi_norm_min)) + ndvi_norm_min)
 );
 
 constraint forall(i in 1..len)(
