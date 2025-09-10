@@ -162,7 +162,6 @@ There are two modalities to run the pipeline in the docker shell:
     run_model
     ```
 
-> [!tip]
 > Run the `--help` option on each command for further details on usage and parameters configuration.
 
 ## Useful Links
