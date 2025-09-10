@@ -1,11 +1,11 @@
-<p align="center">
+<div align="center">
   <img src="media/logo_talea_roversi.png" alt="TALEA Logo" width="300"/>
-</p>
+</div>
 
-<p align="center">
+<div align="center">
   <a href="https://www.linkedin.com/in/christiandibuo/" target="_blank">Christian Di Buò</a> &nbsp; | &nbsp;
   <a href="https://www.linkedin.com/in/simreale" target="_blank">Simone Reale</a>
-</p>
+</div>
 
 # Sustainable City via Trustworthy Digital Twin: a Use Case
 
@@ -14,9 +14,9 @@ Problems like Urban Heat Islands (UHI) and Urban Heat Waves (UHW) particularly t
 
 To address these issues, the __*TALEA*__ project, supported by the *European Urban Initiative – Innovative Actions (EUI-IA)*, introduces **TALEA Green Cells (TGCs)**: modular, adaptable green units that reconnect fragmented green areas, regenerate underutilized spaces, and create local climate refuges.
 
-<p align="center">
+<div align="center">
   <img src="media/talea_green_cells.png" alt="TALEA Green Cells" width="600"/>
-</p>
+</div>
 
 This repository presents a **transparent methodology for planning TGCs placement in Bologna**, relying on **interpretable AI optimization techniques**. The workflow combines open-source urban and demographic data with optimization-based modeling to explore how the distribution of Green Cells shifts under factors such as *population density*, *urban indices* or *land use*.
 
