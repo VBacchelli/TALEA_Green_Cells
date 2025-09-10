@@ -24,6 +24,8 @@ This repository presents a **transparent methodology for planning TGCs placement
 
 ### Land Usage Dataset
 
+<br>
+
 <div style="display:flex;align-items:center;gap:25px;">
     <img src="media/geoportale_er.png" alt="Geoportale Emilia Romagna" width="160"/>
     <div>
@@ -34,7 +36,11 @@ This repository presents a **transparent methodology for planning TGCs placement
     </div>
 </div>
 
+<br>
+
 ### Green Cover Dataset
+
+<br>
 
 <div style="display:flex;align-items:center;gap:25px;">
     <img src="media/open_data_bologna_back.png" alt="Open Data Bologna" width="160"/>
@@ -54,6 +60,8 @@ This repository presents a **transparent methodology for planning TGCs placement
     </div>
 </div>
 
+<br>
+
 <div style="display:flex;align-items:center;gap:25px;">
     <img src="media/geoportale_er.png" alt="Geoportale Emilia Romagna" width="160"/>
     <div>
@@ -68,7 +76,11 @@ This repository presents a **transparent methodology for planning TGCs placement
     </div>
 </div>
 
+<br>
+
 ### Human Infrastructure
+
+<br>
 
 <div style="display:flex;align-items:center;gap:25px;">
     <img src="media/open_data_bologna_back.png" alt="Open Data Bologna" width="160"/>
@@ -84,7 +96,11 @@ This repository presents a **transparent methodology for planning TGCs placement
     </div>
 </div>
 
+<br>
+
 ### Statistical Data
+
+<br>
 
 <div style="display:flex;align-items:center;gap:25px;">
     <img src="media/open_data_bologna_back.png" alt="Open Data Bologna" width="160"/>
@@ -100,6 +116,8 @@ This repository presents a **transparent methodology for planning TGCs placement
     </div>
 </div>
 
+<br>
+
 <div style="display:flex;align-items:center;gap:35px;">
     <img src="doc/source/_static/logo_talea_nitido.png" alt="TALEA Project" width="150"/>
     <div>
@@ -109,6 +127,8 @@ This repository presents a **transparent methodology for planning TGCs placement
         </ul>
     </div>
 </div>
+
+<br>
 
 ## Usage
 
@@ -142,7 +162,7 @@ There are two modalities to run the pipeline in the docker shell:
     run_model
     ```
 
-> [!TIP]
+> [!tip]
 > Run the `--help` option on each command for further details on usage and parameters configuration.
 
 ## Useful Links
@@ -151,7 +171,7 @@ This project relies on spatial data, which is best understood when visualized an
 
 [![Launch GUI](https://img.shields.io/badge/🚀_Launch_GUI_--brightgreen)](https://talea-gui.netlify.app/)
 
-Furthermore, any step of the process is explained in a **documentation** that follows the ReadTheDocs format, that includes further details on data, models and the results obtained.
+Furthermore, any step of the process is explained in a **documentation** that follows the ReadTheDocs format, including further details on data, models and the results obtained.
 
 [![Documentation](https://img.shields.io/badge/📑_Documentation_--blue)](https://talea-documentation.netlify.app/)
 
