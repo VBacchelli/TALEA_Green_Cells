@@ -2,7 +2,7 @@
 set -e
 
 show_help() {
-    echo "Usage: run_pipeline [OPTIONS]"
+    echo "Usage: run_model [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --config FILE          YAML config file with model profiles (std/diff/inverse_uhei/ndvi)."
@@ -24,8 +24,8 @@ show_help() {
     echo "- The macro parameters density_param, green_param and uhei_param must sum to 1."
     echo ""
     echo "Examples:"
-    echo ">> run_pipeline --config configs.yaml --model diff"
-    echo ">> run_pipeline --size full --model inverse_uhei --max_cells 70 --density_param 0.5 --green_param 0.3 --uhei_param 0.2 --beta_streets 0.5 --alpha_yards 1.0 --res_name result_my_spec"
+    echo ">> run_model --config configs.yaml --model diff"
+    echo ">> run_model --size full --model inverse_uhei --max_cells 70 --density_param 0.5 --green_param 0.3 --uhei_param 0.2 --beta_streets 0.5 --alpha_yards 1.0 --res_name result_my_spec"
     exit 0
 }
 
