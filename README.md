@@ -130,6 +130,23 @@ This repository presents a **transparent methodology for planning TGCs placement
 
 <br>
 
+## Models
+
+The placement of TGCs is modeled as a **Combinatorial Optimization Problem (COP)** and relies on the impact of different factors on *micro* and *macro scale* and on how fragmented each area is.
+
+The *macro scale* is referred to the statistical areas, where three indices are considered:
+- *population density*
+- *existing green*
+- *UHEI*
+
+The *micro scale* is referred to the grid of 100x100 m cells, and is modeled differently according to four different approaches:
+
+| Standard | Difference | Inverse UHEI | NDVI |
+|:--------------:|:--------------:|:--------------:|:--------------:|
+|It aims to maximize a utility function, which is directly proportional to new green areas and inversely to existing ones. |Based on the same concept of the Standard one, it considers the impact of the existing green in a differential way. |It maximizes the impact of the FVC on the Inverse UHEI, directly w.r.t. new TGCs and inversely to the existing vegetation. |It maximizes the impact of the FVC on the NDVI, according to a quadratic relation, inversely proportional to the actual NDVI of the cell. |
+
+> Further details on models, indices and sources of this study can be found in the **report** and in the **documentation**.
+
 ## Usage
 
 To reproduce our results, ensure Docker is installed on your system. Once Docker is installed, to run the docker the following scripts should be executed from the terminal while in the Dockerfile directory:
@@ -168,11 +185,25 @@ There are two modalities to run the pipeline in the docker shell:
 
 This project relies on spatial data, which is best understood when visualized and exploring them in tables often leads to ambiguity and poor clarity. Therefore, a simple **Graphical User Interface (GUI)** has been implented to display GeoJson files.
 
-[![Launch GUI](https://img.shields.io/badge/🚀_Launch_GUI_--brightgreen)](https://talea-gui.netlify.app/)
+<div align="center">
+  <a href="https://talea-gui.netlify.app/">
+    <img src="https://img.shields.io/badge/🚀_Launch_GUI_--brightgreen" alt="GUI" height="25"/>
+  </a>
+</div>
+<br>
 
-Furthermore, any step of the process is explained in a **documentation** that follows the ReadTheDocs format, including further details on data, models and the results obtained.
+Furthermore, any step of the process is explained in a **report** and a **documentation** that follows the ReadTheDocs format, including further details on data, models and the results obtained.
 
-[![Documentation](https://img.shields.io/badge/📑_Documentation_--blue)](https://talea-documentation.netlify.app/)
+<div align="center">
+  <a href="TALEA_report.pdf">
+    <img src="https://img.shields.io/badge/📄_Report_--darkred" alt="Report" height="25"/>
+  </a>
+    &nbsp;
+  <a href="https://talea-documentation.netlify.app/">
+    <img src="https://img.shields.io/badge/📑_Documentation_--blue" alt="Documentation" height="25"/>
+  </a>
+</div>
+<br>
 
 ## Repository Structure
 
