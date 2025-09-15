@@ -145,6 +145,7 @@ The *micro scale* is referred to the grid of 100x100 m cells, and is modeled dif
 |:--------------:|:--------------:|:--------------:|:--------------:|
 |It aims to maximize a utility function, which is directly proportional to new green areas and inversely to existing ones. |Based on the same concept of the Standard one, it considers the impact of the existing green in a differential way. |It maximizes the impact of the FVC on the Inverse UHEI, directly w.r.t. new TGCs and inversely to the existing vegetation. |It maximizes the impact of the FVC on the NDVI, according to a quadratic relation, inversely proportional to the actual NDVI of the cell. |
 
+> [!NOTE]
 > Further details on models, indices and sources of this study can be found in the **report** and in the **documentation**.
 
 ## Usage
@@ -179,6 +180,7 @@ There are two modalities to run the pipeline in the docker shell:
     run_model
     ```
 
+> [!TIP]
 > Run the `--help` option on each command for further details on usage and parameters configuration.
 
 ## Useful Links
