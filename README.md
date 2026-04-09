@@ -206,3 +206,38 @@ Furthermore, any step of the process is explained in a **report** and a **docume
   </a>
 </div>
 <br>
+
+## Citation
+
+If you use this work or code for any purpose, please cite the following paper:
+```
+@INPROCEEDINGS{Borg2603:Sustainable,
+AUTHOR="Christian {Di Buò} and Simone Reale and Roberta Calegari and Andrea
+Borghesi",
+TITLE="Sustainable City via Trustworthy Civic Digital Twin: a Use Case",
+BOOKTITLE="DIGITA 2026 - Second Workshop on Digital Twin Ecosystems \& Applications
+(DIGITA 2026)",
+ADDRESS="Pisa, Italy",
+PAGES=6,
+DAYS=15,
+MONTH=mar,
+YEAR=2026,
+KEYWORDS="Civic Digital Twins; Sustainability; Heat Exposure; Green Cells Placement",
+ABSTRACT="Cities increasingly face urban heat and uneven access to green space. We
+present a Digital Twin and an interpretable optimization framework that
+recommends where to deploy modular green cells in Bologna, Italy. We fuse
+municipal open data-land use, public/private green and blue areas,
+buildings and roads-with satellite-derived heat and greenness indices
+(UHEI, NDVI) and demographics into a grid structure. We then cast site
+selection as a constraint optimization problem whose utility factorizes
+into a macro component (policy levers over density,
+heat exposure, and existing green) and a micro component (site-level
+feasibility and expected impact). Scenario analyses show how shifting
+policy priorities redistribute optimal placements across districts. The
+suggestions from the model overlap with pilot areas identified by urban
+experts, supporting practical relevance. The entire stack is containerized
+for reproducibility and includes a lightweight GUI for spatial inspection.
+We release all artifacts to foster the sustainability-driven Digital Twin
+methods that are transparent, adaptable, and action-oriented."
+}
+```
