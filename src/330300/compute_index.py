@@ -4,6 +4,7 @@ import geopandas as gpd
 import numpy as np
 import osmnx as ox
 import pandas as pd
+
 from shapely import make_valid
 from tqdm import tqdm
 
@@ -15,15 +16,28 @@ from tqdm import tqdm
 PROCESSED_DIR = Path("dataset/processed_data/330300")
 
 STAT_AREAS = PROCESSED_DIR / "stat_areas.gpkg"
+TREE_PIXELS = PROCESSED_DIR / "tree_pixels.gpkg"
 PARKS = PROCESSED_DIR / "parks.gpkg"
 
-BUILDINGS_OUT = PROCESSED_DIR / "buildings_300.gpkg"
-STAT_AREAS_OUT = PROCESSED_DIR / "stat_areas_300.csv"
+BUILDINGS_OUT = PROCESSED_DIR / "buildings_330300.gpkg"
+STAT_AREAS_OUT = (
+    PROCESSED_DIR / "bologna_3_30_300_stat_areas.csv"
+)
+
+
+# ---------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------
 
 CRS_METRIC = "EPSG:32632"
 
+R_TREE = 50
 R_PARK = 300
 
+
+# ---------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------
 
 def expand_bounds(geom, distance):
     minx, miny, maxx, maxy = geom.bounds
@@ -36,17 +50,21 @@ def expand_bounds(geom, distance):
     )
 
 
-def main():
+# ---------------------------------------------------------------------
+# Load prepared layers
+# ---------------------------------------------------------------------
 
-    # -----------------------------------------------------------------
-    # 1. Load prepared layers
-    # -----------------------------------------------------------------
-
+def load_layers():
     print("Lettura layer preprocessati...")
 
     stat_areas = gpd.read_file(
         STAT_AREAS,
         layer="stat_areas",
+    ).to_crs(CRS_METRIC)
+
+    tree_pixels = gpd.read_file(
+        TREE_PIXELS,
+        layer="tree_pixels",
     ).to_crs(CRS_METRIC)
 
     parks = gpd.read_file(
@@ -55,20 +73,24 @@ def main():
     ).to_crs(CRS_METRIC)
 
     print(f"Aree statistiche: {len(stat_areas)}")
-    print(f"Geometrie parco: {len(parks)}")
+    print(f"Tree pixels:       {len(tree_pixels)}")
+    print(f"Park polygons:     {len(parks)}")
+
+    return stat_areas, tree_pixels, parks
 
 
-    # -----------------------------------------------------------------
-    # 2. Download residential buildings from OpenStreetMap
-    # -----------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Download residential buildings
+# ---------------------------------------------------------------------
 
+def download_buildings(stat_areas):
     print("Download edifici OSM...")
 
     bounding_polygon = (
         stat_areas
         .to_crs(epsg=4326)
         .geometry
-        .unary_union
+        .union_all()
         .convex_hull
         .buffer(0.01)
     )
@@ -107,12 +129,20 @@ def main():
         f"{len(buildings)}"
     )
 
+    return buildings
 
-    # -----------------------------------------------------------------
-    # 3. Assign each building to a statistical area
-    # -----------------------------------------------------------------
 
-    print("Assegnazione edifici alle aree statistiche...")
+# ---------------------------------------------------------------------
+# Assign buildings to statistical areas
+# ---------------------------------------------------------------------
+
+def assign_buildings_to_statistical_areas(
+    buildings,
+    stat_areas,
+):
+    print(
+        "Assegnazione edifici alle aree statistiche..."
+    )
 
     buildings = buildings.reset_index(drop=True)
 
@@ -126,7 +156,8 @@ def main():
 
     centroids = gpd.GeoDataFrame(
         {
-            "building_id": buildings["building_id"],
+            "building_id":
+                buildings["building_id"]
         },
         geometry=buildings["centroid"],
         crs=CRS_METRIC,
@@ -171,17 +202,20 @@ def main():
         f"{len(buildings)}"
     )
 
+    return buildings
 
-    # -----------------------------------------------------------------
-    # 4. Rule 300 per building
-    # -----------------------------------------------------------------
 
-    print("Calcolo criterio 300...")
+# ---------------------------------------------------------------------
+# Rule 300
+# ---------------------------------------------------------------------
+
+def compute_rule_300(buildings, parks):
+    parks = parks[["geometry"]].reset_index(drop=True)
 
     parks_geom = parks.geometry
     parks_sindex = parks.sindex
 
-    near_park_flags = np.zeros(
+    flags = np.zeros(
         len(buildings),
         dtype=bool,
     )
@@ -190,9 +224,8 @@ def main():
 
     for i in tqdm(
         range(len(buildings)),
-        desc="Buildings",
+        desc="Rule 300",
     ):
-
         geom = geometries[i]
 
         candidate_idx = list(
@@ -204,40 +237,114 @@ def main():
             )
         )
 
-        if candidate_idx:
+        if not candidate_idx:
+            continue
 
-            distances = (
-                parks_geom
-                .iloc[candidate_idx]
-                .distance(geom)
-            )
+        distances = (
+            parks_geom
+            .iloc[candidate_idx]
+            .distance(geom)
+        )
 
-            near_park_flags[i] = bool(
-                (distances <= R_PARK).any()
-            )
+        flags[i] = bool(
+            (distances <= R_PARK).any()
+        )
 
-    buildings["near_park"] = near_park_flags
+    return flags
 
-    buildings["meet_300"] = (
-        buildings["near_park"]
+
+# ---------------------------------------------------------------------
+# Rule 3
+# ---------------------------------------------------------------------
+
+def compute_rule_3(
+    buildings,
+    tree_pixels,
+    near_park_flags,
+):
+    trees = (
+        tree_pixels[["geometry"]]
+        .reset_index(drop=True)
     )
 
+    trees_geom = trees.geometry
+    trees_sindex = trees.sindex
 
-    # -----------------------------------------------------------------
-    # 5. Aggregate per statistical area
-    # -----------------------------------------------------------------
+    has_3_trees_flags = np.zeros(
+        len(buildings),
+        dtype=bool,
+    )
 
+    centroids = buildings["centroid"].values
+
+    for i in tqdm(
+        range(len(buildings)),
+        desc="Rule 3",
+    ):
+        centroid = centroids[i]
+
+        candidate_idx = list(
+            trees_sindex.intersection(
+                expand_bounds(
+                    centroid,
+                    R_TREE,
+                )
+            )
+        )
+
+        if not candidate_idx:
+            continue
+
+        distances = (
+            trees_geom
+            .iloc[candidate_idx]
+            .distance(centroid)
+        )
+
+        has_3_trees_flags[i] = (
+            int(
+                np.sum(
+                    distances <= R_TREE
+                )
+            )
+            >= 3
+        )
+
+    # Same approximation used by the reference repository:
+    # >= 3 tree pixels within 50 m OR park within 300 m.
+    meet_3_flags = (
+        has_3_trees_flags
+        | near_park_flags
+    )
+
+    return has_3_trees_flags, meet_3_flags
+
+
+# ---------------------------------------------------------------------
+# Aggregate per statistical area
+# ---------------------------------------------------------------------
+
+def aggregate_results(
+    buildings,
+    stat_areas,
+):
     print("Aggregazione per area statistica...")
 
     aggregation = (
         buildings
-        .groupby("codice_area_statistica")
+        .groupby(
+            "codice_area_statistica"
+        )
         .agg(
             num_buildings=(
                 "building_id",
                 "count",
             ),
-            num_buildings_within_300m_park=(
+            num_buildings_meet_3=(
+                "meet_3",
+                "sum",
+            ),
+            num_buildings_meet_300=(
                 "meet_300",
                 "sum",
             ),
@@ -246,77 +353,241 @@ def main():
     )
 
     aggregation[
-        "perc_buildings_within_300m_park"
+        "perc_buildings_near_3_trees"
     ] = (
         aggregation[
-            "num_buildings_within_300m_park"
+            "num_buildings_meet_3"
         ]
-        / aggregation["num_buildings"]
+        / aggregation[
+            "num_buildings"
+        ]
         * 100
     )
 
-    aggregation["meet_300"] = (
+    aggregation[
+        "perc_buildings_within_300m_park"
+    ] = (
         aggregation[
+            "num_buildings_meet_300"
+        ]
+        / aggregation[
+            "num_buildings"
+        ]
+        * 100
+    )
+
+    result = stat_areas[
+        [
+            "codice_area_statistica",
+            "area_statistica",
+            "perc_canopy_cover_30",
+            "geometry",
+        ]
+    ].copy()
+
+    result = result.merge(
+        aggregation,
+        on="codice_area_statistica",
+        how="left",
+    )
+
+    result["meet_3"] = (
+        result[
+            "perc_buildings_near_3_trees"
+        ]
+        >= 100
+    )
+
+    result["meet_30"] = (
+        result[
+            "perc_canopy_cover_30"
+        ]
+        >= 30
+    )
+
+    result["meet_300"] = (
+        result[
             "perc_buildings_within_300m_park"
         ]
         >= 100
     )
 
+    result["num_conditions_met"] = (
+        result[
+            [
+                "meet_3",
+                "meet_30",
+                "meet_300",
+            ]
+        ]
+        .astype(int)
+        .sum(axis=1)
+    )
 
-    # -----------------------------------------------------------------
-    # 6. Save outputs
-    # -----------------------------------------------------------------
+    return result
 
+
+# ---------------------------------------------------------------------
+# Save results
+# ---------------------------------------------------------------------
+
+def save_results(buildings, result):
     buildings_out = buildings.drop(
         columns=["centroid"]
     )
 
     buildings_out.to_file(
         BUILDINGS_OUT,
-        layer="buildings_300",
+        layer="buildings_330300",
         driver="GPKG",
     )
 
-    stat_output = stat_areas[
-        [
-            "codice_area_statistica",
-            "area_statistica",
-        ]
-    ].drop_duplicates()
-
-    stat_output = stat_output.merge(
-        aggregation,
-        on="codice_area_statistica",
-        how="left",
+    result = result.rename(
+        columns={
+            "codice_area_statistica":
+                "stat_area_id",
+            "area_statistica":
+                "stat_area_name",
+        }
     )
 
-    stat_output.to_csv(
+    # Convert geometry explicitly after leaving GeoDataFrame semantics.
+    result_df = pd.DataFrame(result.copy())
+
+    result_df["geometry"] = (
+        result.geometry.to_wkt()
+    )
+
+    result_df = result_df[
+        [
+            "stat_area_id",
+            "stat_area_name",
+            "geometry",
+            "perc_buildings_near_3_trees",
+            "perc_canopy_cover_30",
+            "perc_buildings_within_300m_park",
+            "num_conditions_met",
+            "meet_3",
+            "meet_30",
+            "meet_300",
+        ]
+    ]
+
+    result_df.to_csv(
         STAT_AREAS_OUT,
         index=False,
     )
 
-    print()
-    print("Calcolo completato.")
-    print(
-        f"Edifici salvati in: "
-        f"{BUILDINGS_OUT}"
+    return result_df
+
+
+# ---------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------
+
+def main():
+    stat_areas, tree_pixels, parks = (
+        load_layers()
     )
-    print(
-        f"Aree statistiche salvate in: "
-        f"{STAT_AREAS_OUT}"
+
+    buildings = download_buildings(
+        stat_areas
+    )
+
+    buildings = (
+        assign_buildings_to_statistical_areas(
+            buildings,
+            stat_areas,
+        )
+    )
+
+    print("Calcolo criterio 300...")
+
+    near_park_flags = compute_rule_300(
+        buildings,
+        parks,
+    )
+
+    buildings["near_park"] = (
+        near_park_flags
+    )
+
+    buildings["meet_300"] = (
+        near_park_flags
+    )
+
+    print("Calcolo criterio 3...")
+
+    (
+        has_3_trees_flags,
+        meet_3_flags,
+    ) = compute_rule_3(
+        buildings,
+        tree_pixels,
+        near_park_flags,
+    )
+
+    buildings["has_3_trees"] = (
+        has_3_trees_flags
+    )
+
+    buildings["meet_3"] = (
+        meet_3_flags
+    )
+
+    result = aggregate_results(
+        buildings,
+        stat_areas,
+    )
+
+    result_df = save_results(
+        buildings,
+        result,
     )
 
     print()
+    print("=" * 80)
+    print("CALCOLO 3-30-300 COMPLETATO")
+    print("=" * 80)
+
+    print(
+        "Edifici che soddisfano il criterio 3:   "
+        f"{buildings['meet_3'].sum()} / "
+        f"{len(buildings)}"
+    )
+
     print(
         "Edifici che soddisfano il criterio 300: "
         f"{buildings['meet_300'].sum()} / "
         f"{len(buildings)}"
     )
 
+    print()
+
     print(
-        "Aree statistiche che soddisfano il criterio 300: "
-        f"{aggregation['meet_300'].sum()} / "
-        f"{len(aggregation)}"
+        "Aree che soddisfano il criterio 3:   "
+        f"{result_df['meet_3'].sum()} / "
+        f"{len(result_df)}"
+    )
+
+    print(
+        "Aree che soddisfano il criterio 30:  "
+        f"{result_df['meet_30'].sum()} / "
+        f"{len(result_df)}"
+    )
+
+    print(
+        "Aree che soddisfano il criterio 300: "
+        f"{result_df['meet_300'].sum()} / "
+        f"{len(result_df)}"
+    )
+
+    print()
+    print(
+        f"Edifici salvati in: {BUILDINGS_OUT}"
+    )
+    print(
+        f"Indice salvato in:  {STAT_AREAS_OUT}"
     )
 
 
