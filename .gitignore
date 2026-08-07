@@ -2,3 +2,10 @@ processing
 prova.dSYM
 .venv/
 .DS_Store
+/talea
+/results_original
+/results_testRun
+/results_formalization
+compare_runs.py
+/dataset/raw_data
+/cache
