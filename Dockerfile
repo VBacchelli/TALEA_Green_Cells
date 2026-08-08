@@ -19,6 +19,7 @@ cp -r minizinc/lib/* /usr/local/lib
 
 # Copy the current directory contents into the container at /app
 COPY . /app
+RUN find /app/config -name "*.yaml" -exec sed -i 's/\r$//' {} +
 
 RUN apt-get update && \
 apt-get install -y python3-pip python3-pip wget unzip && \
