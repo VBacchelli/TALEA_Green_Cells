@@ -40,6 +40,7 @@ MAX_CELLS=20
 DENSITY_PARAM=0.33
 GREEN_PARAM=0.33
 UHEI_PARAM=0.34
+FACTOR_330300_PARAM=0.0
 BETA_STREETS=0.2
 ALPHA_YARDS=0.8
 ALPHA_UHEI=0.0
@@ -65,7 +66,7 @@ while [[ "$#" -gt 0 ]]; do
             MODEL="$2"
             shift
             ;;
-        --size|--max_cells|--density_param|--green_param|--uhei_param|--beta_streets|--alpha_yards|--alpha_uhei|--res_name)
+        --size|--max_cells|--density_param|--green_param|--uhei_param|--factor_330300_param|--beta_streets|--alpha_yards|--alpha_uhei|--res_name)
             if [[ -n "$CONFIG" ]]; then
                 echo "Error: --config cannot be combined with other parameters like $1 (only --model is allowed with --config)."
                 exit 1
@@ -133,6 +134,7 @@ emit('max_cells', section['max_cells'])
 emit('density_param', section['density_param'])
 emit('green_param', section['green_param'])
 emit('uhei_param', section['uhei_param'])
+emit('factor_330300_param', section.get('factor_330300_param', 0.0))
 emit('beta_streets', section['beta_streets'])
 emit('alpha_yards', section['alpha_yards'])
 emit('alpha_uhei', section['alpha_uhei'])
@@ -169,6 +171,7 @@ python3 config/update_config.py \
   --density_param "$DENSITY_PARAM" \
   --green_param "$GREEN_PARAM" \
   --uhei_param "$UHEI_PARAM" \
+  --factor_330300_param "$FACTOR_330300_PARAM" \
   --beta_streets "$BETA_STREETS" \
   --alpha_yards "$ALPHA_YARDS" \
   --alpha_uhei "$ALPHA_UHEI" \
@@ -180,7 +183,11 @@ echo ""
 # ============================
 
 echo "Running preprocessing.py..."
-python3 src/preprocessing.py --density_param "$DENSITY_PARAM" --green_param "$GREEN_PARAM" --uhei_param "$UHEI_PARAM"
+python3 src/preprocessing.py \
+  --density_param "$DENSITY_PARAM" \
+  --green_param "$GREEN_PARAM" \
+  --uhei_param "$UHEI_PARAM" \
+  --factor_330300_param "$FACTOR_330300_PARAM"
 echo ""
 
 echo "Running data_parser.py..."

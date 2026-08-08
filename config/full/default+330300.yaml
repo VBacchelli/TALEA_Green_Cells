@@ -1,0 +1,47 @@
+std:
+  size: full
+  max_cells: 100
+  density_param: 0.25
+  green_param: 0.25
+  uhei_param: 0.25
+  factor_330300_param: 0.25
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: default
+
+diff:
+  size: full
+  max_cells: 100
+  density_param: 0.25
+  green_param: 0.25
+  uhei_param: 0.25
+  factor_330300_param: 0.25
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.5
+  res_name: default
+
+inverse_uhei:
+  size: full
+  max_cells: 100
+  density_param: 0.25
+  green_param: 0.25
+  uhei_param: 0.25
+  factor_330300_param: 0.25
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: default
+
+ndvi:
+  size: full
+  max_cells: 100
+  density_param: 0.25
+  green_param: 0.25
+  uhei_param: 0.25
+  factor_330300_param: 0.25
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: default

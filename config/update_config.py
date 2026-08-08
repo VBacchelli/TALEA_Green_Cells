@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--density_param", type=float, required=True)
     parser.add_argument("--green_param", type=float, required=True)
     parser.add_argument("--uhei_param", type=float, required=True)
+    parser.add_argument("--factor_330300_param", type=float, required=True)
     parser.add_argument("--beta_streets", type=float, required=True)
     parser.add_argument("--alpha_yards", type=float, required=True)
     parser.add_argument("--alpha_uhei", type=float, required=True)
@@ -33,6 +34,7 @@ if __name__ == "__main__":
     config["density_param"] = args.density_param
     config["green_param"] = args.green_param
     config["uhei_param"] = args.uhei_param
+    config["factor_330300_param"] = args.factor_330300_param
     config["beta_streets"] = args.beta_streets
     config["alpha_yards"] = args.alpha_yards
     config["alpha_uhei"] = args.alpha_uhei
