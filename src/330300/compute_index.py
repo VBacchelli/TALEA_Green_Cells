@@ -537,9 +537,12 @@ def main():
     print("Edifici distinti:", coverage_3["building_id"].nunique())
 
     print(
-        coverage_3[
-            ["existing_trees", "required_trees", "required_green_3"]
-        ].describe()
+        coverage_3[["existing_trees", "required_trees", "required_green_3"]].describe()
+    )
+
+    coverage_3.to_csv(
+        PROCESSED_DIR / "cell_3_coverage.csv",
+        index=False,
     )
 
     result = aggregate_results(
