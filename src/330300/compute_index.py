@@ -57,27 +57,12 @@ def expand_bounds(geom, distance):
 def load_layers():
     print("Lettura layer preprocessati...")
 
-    stat_areas = gpd.read_file(
-        STAT_AREAS,
-        layer="stat_areas",
-    ).to_crs(CRS_METRIC)
-
-    tree_pixels = gpd.read_file(
-        TREE_PIXELS,
-        layer="tree_pixels",
-    ).to_crs(CRS_METRIC)
-
-    parks = gpd.read_file(
-        PARKS,
-        layer="parks",
-    ).to_crs(CRS_METRIC)
-
-    grid = gpd.read_file(
-        GRID
-    ).to_crs(CRS_METRIC)
+    stat_areas = gpd.read_file(STAT_AREAS, layer="stat_areas").to_crs(CRS_METRIC)
+    tree_pixels = gpd.read_file(TREE_PIXELS, layer="tree_pixels").to_crs(CRS_METRIC)
+    parks = gpd.read_file(PARKS, layer="parks").to_crs(CRS_METRIC)
+    grid = gpd.read_file(GRID).to_crs(CRS_METRIC)
 
     print(f"Grid cells:        {len(grid)}")
-
     print(f"Aree statistiche: {len(stat_areas)}")
     print(f"Tree pixels:       {len(tree_pixels)}")
     print(f"Park polygons:     {len(parks)}")
@@ -91,14 +76,7 @@ def load_layers():
 def download_buildings(stat_areas):
     print("Download edifici OSM...")
 
-    bounding_polygon = (
-        stat_areas
-        .to_crs(epsg=4326)
-        .geometry
-        .union_all()
-        .convex_hull
-        .buffer(0.01)
-    )
+    bounding_polygon = stat_areas.to_crs(4326).geometry.union_all().convex_hull.buffer(0.01)
 
     buildings = ox.features_from_polygon(
         bounding_polygon,
@@ -115,14 +93,9 @@ def download_buildings(stat_areas):
         ])
     ]
 
-    buildings = (
-        buildings[["geometry"]]
-        .explode(index_parts=False)
-        .reset_index(drop=True)
-        .to_crs(CRS_METRIC)
-    )
-
-    buildings["geometry"] = (buildings["geometry"].apply(make_valid))
+    buildings = buildings[["geometry"]].explode(index_parts=False)
+    buildings = buildings.reset_index(drop=True).to_crs(CRS_METRIC)
+    buildings["geometry"] = buildings.geometry.apply(make_valid)
     print(f"Edifici residenziali scaricati: "f"{len(buildings)}")
 
     return buildings
@@ -131,41 +104,25 @@ def download_buildings(stat_areas):
 # Assign buildings to statistical areas
 # ---------------------------------------------------------------------
 
-def assign_buildings_to_statistical_areas(
-    buildings,
-    stat_areas,
-):
+def assign_buildings_to_statistical_areas(buildings, stat_areas):
     print("Assegnazione edifici alle aree statistiche...")
+
     buildings = buildings.reset_index(drop=True)
     buildings["building_id"] = np.arange(len(buildings))
-
-    buildings["centroid"] = (buildings.geometry.centroid)
+    buildings["centroid"] = buildings.geometry.centroid
 
     centroids = gpd.GeoDataFrame(
-        {
-            "building_id": buildings["building_id"]
-        },
-        geometry=buildings["centroid"],
+        buildings[["building_id", "centroid"]],
+        geometry="centroid",
         crs=CRS_METRIC,
     )
 
     centroids = gpd.sjoin(
         centroids,
-        stat_areas[[
-            "codice_area_statistica",
-            "geometry",
-        ]],
+        stat_areas[["codice_area_statistica", "geometry"]],
         how="left",
         predicate="within",
-    )
-
-    centroids = (
-        centroids[[
-            "building_id",
-            "codice_area_statistica",
-        ]]
-        .drop_duplicates("building_id")
-    )
+    )[["building_id", "codice_area_statistica"]].drop_duplicates("building_id")
 
     buildings = buildings.merge(
         centroids,
@@ -177,7 +134,7 @@ def assign_buildings_to_statistical_areas(
         buildings["codice_area_statistica"].notna()
     ].reset_index(drop=True)
 
-    print("Edifici assegnati a un'area statistica: "f"{len(buildings)}")
+    print(f"Edifici assegnati a un'area statistica: {len(buildings)}")
 
     return buildings
 
