@@ -9,7 +9,6 @@ from shapely import make_valid
 from shapely.geometry import Point, Polygon, MultiPolygon
 from tqdm import tqdm
 
-
 # ---------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------
@@ -37,45 +36,30 @@ def remove_z(geom):
         return geom
 
     if geom.geom_type == "MultiPolygon":
-        return MultiPolygon(
-            [
-                Polygon(
-                    [(x, y) for x, y, *_ in poly.exterior.coords]
-                )
-                for poly in geom.geoms
-            ]
-        )
+        return MultiPolygon([
+            Polygon(
+                [(x, y) for x, y, *_ in poly.exterior.coords]
+            )
+            for poly in geom.geoms
+        ])
 
     if geom.geom_type == "Polygon":
-        return Polygon(
-            [(x, y) for x, y, *_ in geom.exterior.coords]
-        )
+        return Polygon([(x, y) for x, y, *_ in geom.exterior.coords])
 
     return geom
 
 
 def main():
 
-    PROCESSED_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
     # =================================================================
     # 1. Administrative boundaries
     # =================================================================
 
     print("Lettura aree statistiche...")
-
-    stat_areas = (
-        gpd.read_file(STAT_AREAS)
-        .to_crs(epsg=4326)
-    )
-
-    print(
-        f"Aree statistiche: {len(stat_areas)}"
-    )
-
+    stat_areas = (gpd.read_file(STAT_AREAS).to_crs(epsg=4326))
+    print(f"Aree statistiche: {len(stat_areas)}")
 
     # =================================================================
     # 2. Tree canopy raster
@@ -90,26 +74,15 @@ def main():
     print("Lettura raster canopy...")
 
     with rasterio.open(TREE_CANOPY) as src:
-
         data = src.read(1)
         transform = src.transform
         raster_crs = src.crs
 
-        rows, cols = np.where(
-            data != src.nodata
-        )
+        rows, cols = np.where(data != src.nodata)
 
-        points = [
-            Point(
-                transform * (c, r)
-            )
-            for r, c in zip(rows, cols)
-        ]
+        points = [Point(transform * (c, r)) for r, c in zip(rows, cols)]
 
-        values = [
-            data[r, c]
-            for r, c in zip(rows, cols)
-        ]
+        values = [data[r, c] for r, c in zip(rows, cols)]
 
         canopy = gpd.GeoDataFrame(
             {
@@ -120,17 +93,12 @@ def main():
             crs=raster_crs,
         )
 
-    print(
-        f"Pixel raster validi: {len(canopy)}"
-    )
+    print(f"Pixel raster validi: {len(canopy)}")
 
     # The spatial join requires both layers in the same CRS.
-    stat_areas_for_canopy = (
-        stat_areas.to_crs(canopy.crs)
-    )
+    stat_areas_for_canopy = (stat_areas.to_crs(canopy.crs))
 
-    # Spatial join:
-    # canopy pixels -> statistical areas
+    # Spatial join: canopy pixels -> statistical areas
     canopy_by_area = gpd.sjoin(
         canopy,
         stat_areas_for_canopy,
@@ -139,40 +107,22 @@ def main():
     )
 
     canopy_by_area_valid = canopy_by_area[
-        canopy_by_area[
-            "canopy_value"
-        ].isin([0, 1])
+        canopy_by_area["canopy_value"].isin([0, 1])
     ].copy()
 
-    print(
-        "Pixel canopy assegnati alle aree statistiche: "
-        f"{len(canopy_by_area_valid)}"
-    )
-
+    print("Pixel canopy assegnati alle aree statistiche: "f"{len(canopy_by_area_valid)}")
 
     # -----------------------------------------------------------------
     # 2a. Rule 30 - canopy percentage per statistical area
     # -----------------------------------------------------------------
 
-    print(
-        "Calcolo percentuale canopy per area statistica..."
-    )
+    print("Calcolo percentuale canopy per area statistica...")
 
     canopy_pct = (
         canopy_by_area_valid
         .groupby("codice_area_statistica")
-        .apply(
-            lambda g:
-            (
-                g["canopy_value"].sum()
-                / len(g)
-            )
-            * 100,
-            include_groups=False,
-        )
-        .reset_index(
-            name="perc_canopy_cover_30"
-        )
+        .apply(lambda g: (g["canopy_value"].sum() / len(g)) * 100, include_groups=False)
+        .reset_index(name="perc_canopy_cover_30")
     )
 
     stat_areas = stat_areas.merge(
@@ -181,39 +131,28 @@ def main():
         how="left",
     )
 
-
     # -----------------------------------------------------------------
     # 2b. Rule 3 - retain canopy pixels classified as trees
     # -----------------------------------------------------------------
 
     tree_pixels = canopy_by_area_valid[
-        canopy_by_area_valid[
-            "canopy_value"
-        ]
-        == 1
+        canopy_by_area_valid["canopy_value"] == 1
     ].copy()
 
     tree_pixels["tipo"] = "tree"
 
-    tree_pixels = tree_pixels[
-        [
-            "geometry",
-            "quartiere",
-            "zona",
-            "area_statistica",
-            "codice_area_statistica",
-            "tipo",
-        ]
-    ]
+    tree_pixels = tree_pixels[[
+        "geometry",
+        "quartiere",
+        "zona",
+        "area_statistica",
+        "codice_area_statistica",
+        "tipo",
+    ]]
 
-    tree_pixels = tree_pixels.to_crs(
-        epsg=4326
-    )
+    tree_pixels = tree_pixels.to_crs(epsg=4326)
 
-    print(
-        f"Tree pixels: {len(tree_pixels)}"
-    )
-
+    print(f"Tree pixels: {len(tree_pixels)}")
 
     # =================================================================
     # 3. Parks and gardens
@@ -222,44 +161,16 @@ def main():
     # =================================================================
 
     print("Lettura parchi e giardini...")
-
-    parks = gpd.read_file(
-        DBSN,
-        layer="pe_uins",
-    )
+    parks = gpd.read_file(DBSN, layer="pe_uins")
 
     parks = parks[
-        parks["pe_uins_ty"].isin(
-            [
-                "11",
-                "1101",
-                "1102",
-                "1103",
-            ]
-        )
+        parks["pe_uins_ty"].isin(["11","1101","1102","1103"])
     ].copy()
 
-    print(
-        f"Parchi selezionati prima del clipping: "
-        f"{len(parks)}"
-    )
-
-    parks["geometry"] = (
-        parks["geometry"]
-        .apply(remove_z)
-    )
-
+    print(f"Parchi selezionati prima del clipping: "f"{len(parks)}")
+    parks["geometry"] = (parks["geometry"].apply(remove_z))
     parks["tipo"] = "park or garden"
-
-    parks = (
-        gpd.GeoDataFrame(
-            parks,
-            geometry="geometry",
-            crs=parks.crs,
-        )
-        .to_crs(epsg=4326)
-    )
-
+    parks = (gpd.GeoDataFrame(parks, geometry="geometry", crs=parks.crs).to_crs(epsg=4326))
 
     # -----------------------------------------------------------------
     # Fix invalid geometries before overlay
@@ -275,14 +186,11 @@ def main():
         .apply(make_valid)
     )
 
-
     # -----------------------------------------------------------------
     # Clip parks to statistical areas
     # -----------------------------------------------------------------
 
-    print(
-        "Clipping parchi sulle aree statistiche..."
-    )
+    print("Clipping parchi sulle aree statistiche...")
 
     parks_sindex = parks.sindex
     results = []
@@ -292,73 +200,45 @@ def main():
         total=len(stat_areas),
         desc="Statistical areas",
     ):
-
         area_geom = area_row.geometry
-        area_code = area_row[
-            "codice_area_statistica"
-        ]
+        area_code = area_row["codice_area_statistica"]
 
         candidate_idx = list(
-            parks_sindex.intersection(
-                area_geom.bounds
-            )
+            parks_sindex.intersection(area_geom.bounds)
         )
 
-        parks_in_area = parks.iloc[
-            candidate_idx
-        ]
-
-        parks_in_area = parks_in_area[
-            parks_in_area.intersects(
-                area_geom
-            )
-        ]
+        parks_in_area = parks.iloc[candidate_idx]
+        parks_in_area = parks_in_area[parks_in_area.intersects(area_geom)]
 
         if parks_in_area.empty:
             continue
 
         try:
-
             overlay = gpd.overlay(
                 parks_in_area,
-                gpd.GeoDataFrame(
-                    [area_row],
-                    crs=stat_areas.crs,
-                ),
+                gpd.GeoDataFrame([area_row], crs=stat_areas.crs),
                 how="intersection",
                 keep_geom_type=False,
             )
 
-            results.append(
-                overlay
-            )
+            results.append(overlay)
 
         except Exception as exc:
-
-            print(
-                f"Overlay error for area "
-                f"{area_code}: {exc}"
-            )
+            print(f"Overlay error for area "f"{area_code}: {exc}")
 
     clipped_parks = gpd.GeoDataFrame(
-        pd.concat(
-            results,
-            ignore_index=True,
-        ),
+        pd.concat(results, ignore_index=True),
         crs=stat_areas.crs,
     )
 
-    clipped_parks = clipped_parks[
-        [
-            "geometry",
-            "quartiere",
-            "zona",
-            "area_statistica",
-            "codice_area_statistica",
-            "tipo",
-        ]
-    ]
-
+    clipped_parks = clipped_parks[[
+        "geometry",
+        "quartiere",
+        "zona",
+        "area_statistica",
+        "codice_area_statistica",
+        "tipo",
+    ]]
 
     # =================================================================
     # 4. Save prepared layers
@@ -384,7 +264,6 @@ def main():
         driver="GPKG",
     )
 
-
     # =================================================================
     # Summary
     # =================================================================
@@ -394,26 +273,14 @@ def main():
     print("PREPARAZIONE 3-30-300 COMPLETATA")
     print("=" * 80)
 
-    print(
-        f"Aree statistiche: "
-        f"{len(stat_areas)}"
-    )
+    print(f"Aree statistiche: "f"{len(stat_areas)}")
 
-    print(
-        f"Tree pixels:       "
-        f"{len(tree_pixels)}"
-    )
+    print(f"Tree pixels:       "f"{len(tree_pixels)}")
 
-    print(
-        f"Park polygons:     "
-        f"{len(clipped_parks)}"
-    )
+    print(f"Park polygons:     "f"{len(clipped_parks)}")
 
     print()
-    print(
-        f"Output directory: "
-        f"{PROCESSED_DIR}"
-    )
+    print(f"Output directory: "f"{PROCESSED_DIR}")
 
 
 if __name__ == "__main__":
