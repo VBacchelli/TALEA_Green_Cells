@@ -261,7 +261,7 @@ def compute_counterfactual_3(buildings, trees, grid, tree_density):
     print("Calcolo controfattuale criterio 3...")
 
     uncovered = buildings.loc[
-        ~buildings["has_3_trees"],
+        ~buildings["meet_3"],
         ["building_id", "centroid"]
     ].copy()
 
