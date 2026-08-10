@@ -13,19 +13,18 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------
 
 PROCESSED_DIR = Path("dataset/processed_data/330300")
-RAW_DIR=Path("dataset/raw_data")
+RAW_DIR = Path("dataset/raw_data")
 
 STAT_AREAS = PROCESSED_DIR / "stat_areas.gpkg"
 PARKS = PROCESSED_DIR / "parks.gpkg"
+GRID = PROCESSED_DIR.parent / "full/final_grid.geojson"
+STAT_GRID = PROCESSED_DIR.parent / "full/aree_statistiche_grid.geojson"
 
 BUILDINGS_OUT = PROCESSED_DIR / "buildings_330300.gpkg"
-STAT_AREAS_OUT = (PROCESSED_DIR / "bologna_3_30_300_stat_areas.csv")
-
-GRID = Path("dataset/processed_data/full/final_grid.geojson")
-
-CELL_300_BENEFIT_OUT = (PROCESSED_DIR / "cell_300_benefit.csv")
-
-CELL_300_COVERAGE_OUT = (PROCESSED_DIR / "cell_300_coverage.csv")
+STAT_AREAS_OUT = PROCESSED_DIR / "bologna_3_30_300_stat_areas.csv"
+CELL_300_BENEFIT_OUT = PROCESSED_DIR / "cell_300_benefit.csv"
+CELL_300_COVERAGE_OUT = PROCESSED_DIR / "cell_300_coverage.csv"
+CELL_3_COVERAGE_OUT = PROCESSED_DIR / "cell_3_coverage.csv"
 
 # ---------------------------------------------------------------------
 # Parameters
@@ -35,6 +34,7 @@ CRS_METRIC = "EPSG:32632"
 
 R_TREE = 50
 R_PARK = 300
+TREE_DENSITY = 0.01
 
 # ---------------------------------------------------------------------
 # Utilities
@@ -110,32 +110,60 @@ def assign_buildings_to_statistical_areas(buildings, stat_areas):
     buildings["centroid"] = buildings.geometry.centroid
 
     centroids = gpd.GeoDataFrame(
-        buildings[["building_id", "centroid"]],
-        geometry="centroid",
-        crs=CRS_METRIC,
+        buildings[["building_id"]],
+        geometry=buildings["centroid"],
+        crs=buildings.crs,
     )
 
-    centroids = gpd.sjoin(
+    area_ids = gpd.sjoin(
         centroids,
         stat_areas[["codice_area_statistica", "geometry"]],
         how="left",
         predicate="within",
     )[["building_id", "codice_area_statistica"]].drop_duplicates("building_id")
 
-    buildings = buildings.merge(
-        centroids,
-        on="building_id",
-        how="left",
+    buildings = (
+        buildings.merge(area_ids, on="building_id", how="left")
+        .dropna(subset=["codice_area_statistica"])
+        .reset_index(drop=True)
     )
-
-    buildings = buildings[
-        buildings["codice_area_statistica"].notna()
-    ].reset_index(drop=True)
 
     print(f"Edifici assegnati a un'area statistica: {len(buildings)}")
 
     return buildings
 
+# ---------------------------------------------------------------------
+# Counterfactual Rule 30
+# ---------------------------------------------------------------------
+
+def compute_counterfactual_30(stat_areas, stat_grid):
+    print("Calcolo controfattuale criterio 30...")
+
+    areas = stat_areas[
+        ["codice_area_statistica", "perc_canopy_cover_30", "geometry"]
+    ].copy()
+
+    areas["required_canopy_30"] = (
+        0.30 * areas.geometry.area
+        - areas["perc_canopy_cover_30"] / 100 * areas.geometry.area
+    ).clip(lower=0)
+
+    areas = areas[areas["required_canopy_30"] > 0]
+
+    coverage = stat_grid[
+        ["id", "codice_area_statistica", "intersect_area_statistica"]
+    ].copy()
+
+    coverage["cell_share"] = (
+        coverage["intersect_area_statistica"]
+        / coverage.groupby("id")["intersect_area_statistica"].transform("sum")
+    )
+
+    return coverage.merge(
+        areas[["codice_area_statistica", "required_canopy_30"]],
+        on="codice_area_statistica",
+        how="inner",
+    )
 
 # ---------------------------------------------------------------------
 # Rule 300
@@ -143,36 +171,17 @@ def assign_buildings_to_statistical_areas(buildings, stat_areas):
 
 def compute_rule_300(buildings, parks):
     parks = parks[["geometry"]].reset_index(drop=True)
+    flags = np.zeros(len(buildings), dtype=bool)
 
-    parks_geom = parks.geometry
-    parks_sindex = parks.sindex
-
-    flags = np.zeros(
-        len(buildings),
-        dtype=bool,
-    )
-
-    geometries = buildings.geometry.values
-
-    for i in tqdm(
-        range(len(buildings)),
-        desc="Rule 300",
-    ):
-        geom = geometries[i]
-
+    for i, geom in enumerate(tqdm(buildings.geometry, desc="Rule 300")):
         candidate_idx = list(
-            parks_sindex.intersection(expand_bounds(geom,R_PARK,))
+            parks.sindex.intersection(expand_bounds(geom, R_PARK))
         )
 
-        if not candidate_idx:
-            continue
-
-        distances = (
-            parks_geom
-            .iloc[candidate_idx]
-            .distance(geom)
-        )
-        flags[i] = bool((distances <= R_PARK).any())
+        if candidate_idx:
+            flags[i] = (
+                parks.geometry.iloc[candidate_idx].distance(geom) <= R_PARK
+            ).any()
 
     return flags
 
@@ -188,12 +197,12 @@ def compute_counterfactual_300(buildings, grid):
         ["building_id", "geometry"]
     ]
 
-    green_cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"}).copy()
-    green_cells["geometry"] = green_cells.geometry.buffer(R_PARK)
+    cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"}).copy()
+    cells["geometry"] = cells.geometry.buffer(R_PARK)
 
     coverage = gpd.sjoin(
         uncovered,
-        green_cells,
+        cells,
         how="inner",
         predicate="intersects",
     )[["cell_id", "building_id"]].drop_duplicates()
@@ -211,7 +220,9 @@ def compute_counterfactual_300(buildings, grid):
     )
 
     cell_benefit["benefit_300_count"] = (
-        cell_benefit["benefit_300_count"].fillna(0).astype(int)
+        cell_benefit["benefit_300_count"]
+        .fillna(0)
+        .astype(int)
     )
 
     cell_benefit["benefit_300_share"] = (
@@ -224,55 +235,23 @@ def compute_counterfactual_300(buildings, grid):
 # Rule 3
 # ---------------------------------------------------------------------
 
-def compute_rule_3(
-    buildings,
-    trees,
-    near_park_flags,
-):
-    trees = (
-        trees[["geometry"]]
-        .reset_index(drop=True)
-    )
+def compute_rule_3(buildings, trees, near_park_flags):
+    trees = trees[["geometry"]].reset_index(drop=True)
+    has_3_trees = np.zeros(len(buildings), dtype=bool)
 
-    trees_geom = trees.geometry
-    trees_sindex = trees.sindex
-
-    has_3_trees_flags = np.zeros(
-        len(buildings),
-        dtype=bool,
-    )
-
-    centroids = buildings["centroid"].values
-
-    for i in tqdm(
-        range(len(buildings)),
-        desc="Rule 3",
+    for i, centroid in enumerate(
+        tqdm(buildings["centroid"], desc="Rule 3")
     ):
-        centroid = centroids[i]
-
         candidate_idx = list(
-            trees_sindex.intersection(
-                expand_bounds(centroid, R_TREE)
-            )
+            trees.sindex.intersection(expand_bounds(centroid, R_TREE))
         )
 
-        if not candidate_idx:
-            continue
+        if candidate_idx:
+            has_3_trees[i] = (
+                trees.geometry.iloc[candidate_idx].distance(centroid) <= R_TREE
+            ).sum() >= 3
 
-        distances = (
-            trees_geom
-            .iloc[candidate_idx]
-            .distance(centroid)
-        )
-
-        has_3_trees_flags[i] = (
-            int(np.sum(distances <= R_TREE)) >= 3
-        )
-
-    # Approximation: >= 3 tree pixels within 50 m OR park within 300 m.
-    meet_3_flags = (has_3_trees_flags | near_park_flags)
-
-    return has_3_trees_flags, meet_3_flags
+    return has_3_trees, has_3_trees | near_park_flags
 
 # ---------------------------------------------------------------------
 # Counterfactual Rule 3
@@ -292,7 +271,6 @@ def compute_counterfactual_3(buildings, trees, grid, tree_density):
         crs=buildings.crs,
     )
 
-    # Existing trees within 50 m
     counts = (
         gpd.sjoin(
             centroids,
@@ -306,20 +284,15 @@ def compute_counterfactual_3(buildings, trees, grid, tree_density):
     )
 
     uncovered["existing_trees"] = (
-        uncovered["building_id"]
-        .map(counts)
-        .fillna(0)
-        .astype(int)
+        uncovered["building_id"].map(counts).fillna(0).astype(int)
     )
 
     uncovered["required_trees"] = 3 - uncovered["existing_trees"]
-    uncovered["required_green_3"] = (uncovered["required_trees"] / tree_density)
+    uncovered["required_green_3"] = (
+        uncovered["required_trees"] / tree_density
+    )
 
-    # Cells that can add trees within 50 m
-    cells = grid[["id", "geometry"]].rename(
-        columns={"id": "cell_id"}
-    ).copy()
-
+    cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"}).copy()
     cells["geometry"] = cells.geometry.buffer(R_TREE)
 
     coverage = gpd.sjoin(
@@ -454,6 +427,33 @@ def save_results(buildings, result):
 
 def main():
     stat_areas, parks, grid = (load_layers())
+
+    stat_grid = gpd.read_file(STAT_GRID)
+
+    print("Righe:", len(stat_grid))
+    print("Colonne:", stat_grid.columns.tolist())
+
+    stat_grid["cell_share"] = (
+        stat_grid["intersect_area_statistica"]
+        / stat_grid.groupby("id")["intersect_area_statistica"].transform("sum")
+    )
+
+    print(
+        stat_grid.loc[
+            stat_grid["id"] == 11684,
+            [
+                "id",
+                "codice_area_statistica",
+                "area_statistica",
+                "intersect_area_statistica",
+                "cell_share",
+            ],
+        ]
+    )
+
+    print(
+        stat_grid.groupby("id")["cell_share"].sum().describe()
+    )
     buildings = download_buildings(stat_areas)
 
     buildings = (
@@ -463,9 +463,6 @@ def main():
         PROCESSED_DIR.parent / "verde.gpkg",
         layer="verde"
     )
-
-    print(verde.geometry.geom_type.value_counts())
-    print(verde.columns.tolist())
 
     print("Calcolo criterio 300...")
     near_park_flags = compute_rule_300(
@@ -528,7 +525,7 @@ def main():
         buildings,
         trees,
         grid,
-        tree_density=0.01
+        tree_density=TREE_DENSITY
     )
 
     print(coverage_3.head())
@@ -540,9 +537,33 @@ def main():
         coverage_3[["existing_trees", "required_trees", "required_green_3"]].describe()
     )
 
-    coverage_3.to_csv(
-        PROCESSED_DIR / "cell_3_coverage.csv",
-        index=False,
+    coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
+
+    coverage_30 = compute_counterfactual_30(
+        stat_areas,
+        stat_grid
+    )
+
+    print("\nCOUNTERFACTUAL 30")
+    print("Righe:", len(coverage_30))
+    print("Celle distinte:", coverage_30["id"].nunique())
+    print("Aree statistiche distinte:", coverage_30["codice_area_statistica"].nunique())
+
+    print(
+        coverage_30[
+            [
+                "id",
+                "codice_area_statistica",
+                "cell_share",
+                "required_canopy_30"
+            ]
+        ].head(10)
+    )
+
+    print(
+        coverage_30[
+            ["required_canopy_30"]
+        ].describe()
     )
 
     result = aggregate_results(
@@ -569,10 +590,8 @@ def main():
     print(
         "Edifici che soddisfano il criterio 300: "
         f"{buildings['meet_300'].sum()} / "
-        f"{len(buildings)}"
+        f"{len(buildings)}\n"
     )
-
-    print()
 
     print(
         "Aree che soddisfano il criterio 3:   "
@@ -589,10 +608,9 @@ def main():
     print(
         "Aree che soddisfano il criterio 300: "
         f"{result_df['meet_300'].sum()} / "
-        f"{len(result_df)}"
+        f"{len(result_df)}\n"
     )
 
-    print()
     print(f"Edifici salvati in: {BUILDINGS_OUT}")
     print(f"Indice salvato in:  {STAT_AREAS_OUT}")
 
