@@ -13,9 +13,9 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------
 
 PROCESSED_DIR = Path("dataset/processed_data/330300")
+RAW_DIR=Path("dataset/raw_data")
 
 STAT_AREAS = PROCESSED_DIR / "stat_areas.gpkg"
-TREE_PIXELS = PROCESSED_DIR / "tree_pixels.gpkg"
 PARKS = PROCESSED_DIR / "parks.gpkg"
 
 BUILDINGS_OUT = PROCESSED_DIR / "buildings_330300.gpkg"
@@ -58,16 +58,14 @@ def load_layers():
     print("Lettura layer preprocessati...")
 
     stat_areas = gpd.read_file(STAT_AREAS, layer="stat_areas").to_crs(CRS_METRIC)
-    tree_pixels = gpd.read_file(TREE_PIXELS, layer="tree_pixels").to_crs(CRS_METRIC)
     parks = gpd.read_file(PARKS, layer="parks").to_crs(CRS_METRIC)
     grid = gpd.read_file(GRID).to_crs(CRS_METRIC)
 
     print(f"Grid cells:        {len(grid)}")
     print(f"Aree statistiche: {len(stat_areas)}")
-    print(f"Tree pixels:       {len(tree_pixels)}")
     print(f"Park polygons:     {len(parks)}")
 
-    return stat_areas, tree_pixels, parks, grid
+    return stat_areas, parks, grid
 
 # ---------------------------------------------------------------------
 # Download residential buildings
@@ -228,11 +226,11 @@ def compute_counterfactual_300(buildings, grid):
 
 def compute_rule_3(
     buildings,
-    tree_pixels,
+    trees,
     near_park_flags,
 ):
     trees = (
-        tree_pixels[["geometry"]]
+        trees[["geometry"]]
         .reset_index(drop=True)
     )
 
@@ -275,6 +273,73 @@ def compute_rule_3(
     meet_3_flags = (has_3_trees_flags | near_park_flags)
 
     return has_3_trees_flags, meet_3_flags
+
+# ---------------------------------------------------------------------
+# Counterfactual Rule 3
+# ---------------------------------------------------------------------
+
+def compute_counterfactual_3(buildings, trees, grid, tree_density):
+    print("Calcolo controfattuale criterio 3...")
+
+    uncovered = buildings.loc[
+        ~buildings["has_3_trees"],
+        ["building_id", "centroid"]
+    ].copy()
+
+    centroids = gpd.GeoDataFrame(
+        uncovered[["building_id"]],
+        geometry=uncovered["centroid"],
+        crs=buildings.crs,
+    )
+
+    # Existing trees within 50 m
+    counts = (
+        gpd.sjoin(
+            centroids,
+            trees[["geometry"]],
+            how="left",
+            predicate="dwithin",
+            distance=R_TREE,
+        )
+        .groupby("building_id")["index_right"]
+        .count()
+    )
+
+    uncovered["existing_trees"] = (
+        uncovered["building_id"]
+        .map(counts)
+        .fillna(0)
+        .astype(int)
+    )
+
+    uncovered["required_trees"] = 3 - uncovered["existing_trees"]
+    uncovered["required_green_3"] = (uncovered["required_trees"] / tree_density)
+
+    # Cells that can add trees within 50 m
+    cells = grid[["id", "geometry"]].rename(
+        columns={"id": "cell_id"}
+    ).copy()
+
+    cells["geometry"] = cells.geometry.buffer(R_TREE)
+
+    coverage = gpd.sjoin(
+        centroids,
+        cells,
+        how="inner",
+        predicate="intersects",
+    )[["cell_id", "building_id"]].drop_duplicates()
+
+    return coverage.merge(
+        uncovered[
+            [
+                "building_id",
+                "existing_trees",
+                "required_trees",
+                "required_green_3",
+            ]
+        ],
+        on="building_id",
+    )
 
 # ---------------------------------------------------------------------
 # Aggregate per statistical area
@@ -388,12 +453,19 @@ def save_results(buildings, result):
 # ---------------------------------------------------------------------
 
 def main():
-    stat_areas, tree_pixels, parks, grid = (load_layers())
+    stat_areas, parks, grid = (load_layers())
     buildings = download_buildings(stat_areas)
 
     buildings = (
         assign_buildings_to_statistical_areas(buildings,stat_areas)
     )
+    verde = gpd.read_file(
+        PROCESSED_DIR.parent / "verde.gpkg",
+        layer="verde"
+    )
+
+    print(verde.geometry.geom_type.value_counts())
+    print(verde.columns.tolist())
 
     print("Calcolo criterio 300...")
     near_park_flags = compute_rule_300(
@@ -433,16 +505,42 @@ def main():
         f"{cell_benefit_300['benefit_300_count'].max()}"
     )
 
+    trees = gpd.read_file(
+        RAW_DIR / "alberi-manutenzioni.fgb"
+    ).to_crs(CRS_METRIC)
+
+    print("Alberi comunali:", len(trees))
+    print("Geometry types:", trees.geometry.geom_type.value_counts())
+    print("CRS:", trees.crs)
+
     print("Calcolo criterio 3...")
 
     (has_3_trees_flags,meet_3_flags,) = compute_rule_3(
         buildings,
-        tree_pixels,
+        trees,
         near_park_flags,
     )
 
     buildings["has_3_trees"] = (has_3_trees_flags)
     buildings["meet_3"] = (meet_3_flags)
+
+    coverage_3 = compute_counterfactual_3(
+        buildings,
+        trees,
+        grid,
+        tree_density=0.01
+    )
+
+    print(coverage_3.head())
+    print("Righe:", len(coverage_3))
+    print("Celle distinte:", coverage_3["cell_id"].nunique())
+    print("Edifici distinti:", coverage_3["building_id"].nunique())
+
+    print(
+        coverage_3[
+            ["existing_trees", "required_trees", "required_green_3"]
+        ].describe()
+    )
 
     result = aggregate_results(
         buildings,

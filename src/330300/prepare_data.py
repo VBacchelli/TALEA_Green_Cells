@@ -21,9 +21,7 @@ TREE_CANOPY = RAW_DIR / "TreeCanopy_ExportV2.tif"
 DBSN = RAW_DIR / "Bologna_dbsn.gdb"
 
 STAT_AREAS_OUT = PROCESSED_DIR / "stat_areas.gpkg"
-TREE_PIXELS_OUT = PROCESSED_DIR / "tree_pixels.gpkg"
 PARKS_OUT = PROCESSED_DIR / "parks.gpkg"
-
 
 # ---------------------------------------------------------------------
 # Geometry utilities
@@ -113,7 +111,7 @@ def main():
     print("Pixel canopy assegnati alle aree statistiche: "f"{len(canopy_by_area_valid)}")
 
     # -----------------------------------------------------------------
-    # 2a. Rule 30 - canopy percentage per statistical area
+    # Rule 30 - canopy percentage per statistical area
     # -----------------------------------------------------------------
 
     print("Calcolo percentuale canopy per area statistica...")
@@ -131,31 +129,8 @@ def main():
         how="left",
     )
 
-    # -----------------------------------------------------------------
-    # 2b. Rule 3 - retain canopy pixels classified as trees
-    # -----------------------------------------------------------------
-
-    tree_pixels = canopy_by_area_valid[
-        canopy_by_area_valid["canopy_value"] == 1
-    ].copy()
-
-    tree_pixels["tipo"] = "tree"
-
-    tree_pixels = tree_pixels[[
-        "geometry",
-        "quartiere",
-        "zona",
-        "area_statistica",
-        "codice_area_statistica",
-        "tipo",
-    ]]
-
-    tree_pixels = tree_pixels.to_crs(epsg=4326)
-
-    print(f"Tree pixels: {len(tree_pixels)}")
-
     # =================================================================
-    # 3. Parks and gardens
+    # Parks and gardens
     #
     # Used by rules 3 and 300
     # =================================================================
@@ -252,12 +227,6 @@ def main():
         driver="GPKG",
     )
 
-    tree_pixels.to_file(
-        TREE_PIXELS_OUT,
-        layer="tree_pixels",
-        driver="GPKG",
-    )
-
     clipped_parks.to_file(
         PARKS_OUT,
         layer="parks",
@@ -274,8 +243,6 @@ def main():
     print("=" * 80)
 
     print(f"Aree statistiche: "f"{len(stat_areas)}")
-
-    print(f"Tree pixels:       "f"{len(tree_pixels)}")
 
     print(f"Park polygons:     "f"{len(clipped_parks)}")
 
