@@ -35,8 +35,6 @@ CRS_METRIC = "EPSG:32632"
 
 R_TREE = 50
 R_PARK = 300
-TREE_DENSITY = 0.01
-CANOPY_DENSITY = 0.30
 
 # ---------------------------------------------------------------------
 # Utilities
@@ -167,8 +165,6 @@ def compute_counterfactual_30(stat_areas, stat_grid):
         how="inner",
     )
 
-    coverage["canopy_gain_factor_30"] = CANOPY_DENSITY * coverage["cell_share"]
-
     return coverage
 
 # ---------------------------------------------------------------------
@@ -256,7 +252,7 @@ def compute_rule_3(buildings, trees, near_park_flags):
 # Counterfactual Rule 3
 # ---------------------------------------------------------------------
 
-def compute_counterfactual_3(buildings, trees, grid, tree_density):
+def compute_counterfactual_3(buildings, trees, grid):
     print("Calcolo controfattuale criterio 3...")
 
     uncovered = buildings.loc[
@@ -285,7 +281,6 @@ def compute_counterfactual_3(buildings, trees, grid, tree_density):
     uncovered["existing_trees"] = uncovered["building_id"].map(counts).fillna(0).astype(int)
 
     uncovered["required_trees"] = 3 - uncovered["existing_trees"]
-    uncovered["required_green_3"] = uncovered["required_trees"] / tree_density
 
     cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"})
     cells["geometry"] = cells.geometry.buffer(R_TREE)
@@ -302,8 +297,7 @@ def compute_counterfactual_3(buildings, trees, grid, tree_density):
             [
                 "building_id",
                 "existing_trees",
-                "required_trees",
-                "required_green_3",
+                "required_trees"
             ]
         ],
         on="building_id",
@@ -457,37 +451,24 @@ def main():
     buildings["has_3_trees"] = has_3_trees_flags
     buildings["meet_3"] = meet_3_flags
 
-    coverage_3 = compute_counterfactual_3(
-        buildings,
-        trees,
-        grid,
-        tree_density=TREE_DENSITY
-    )
-
+    coverage_3 = compute_counterfactual_3(buildings, trees, grid)
+    print("\nCOUNTERFACTUAL 3")
     print(coverage_3.head())
-
     coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
 
-    coverage_30 = compute_counterfactual_30(
-        stat_areas,
-        stat_grid
-    )
-
+    coverage_30 = compute_counterfactual_30(stat_areas, stat_grid)
     print("\nCOUNTERFACTUAL 30")
-
     print(
         coverage_30[
             [
                 "id",
                 "codice_area_statistica",
                 "cell_share",
-                "required_canopy_30",
-                "canopy_gain_factor_30",
+                "required_canopy_30"
             ]
         ].head(10)
     )
 
-    print(coverage_30["canopy_gain_factor_30"].describe())
     coverage_30.to_csv(CELL_30_COVERAGE_OUT, index=False)
 
     result = aggregate_results(buildings, stat_areas)
