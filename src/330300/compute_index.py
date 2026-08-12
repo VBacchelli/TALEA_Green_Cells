@@ -25,6 +25,7 @@ STAT_AREAS_OUT = PROCESSED_DIR / "bologna_3_30_300_stat_areas.csv"
 CELL_300_BENEFIT_OUT = PROCESSED_DIR / "cell_300_benefit.csv"
 CELL_300_COVERAGE_OUT = PROCESSED_DIR / "cell_300_coverage.csv"
 CELL_3_COVERAGE_OUT = PROCESSED_DIR / "cell_3_coverage.csv"
+CELL_30_COVERAGE_OUT = PROCESSED_DIR / "cell_30_coverage.csv"
 
 # ---------------------------------------------------------------------
 # Parameters
@@ -35,6 +36,7 @@ CRS_METRIC = "EPSG:32632"
 R_TREE = 50
 R_PARK = 300
 TREE_DENSITY = 0.01
+CANOPY_DENSITY = 0.30
 
 # ---------------------------------------------------------------------
 # Utilities
@@ -94,7 +96,7 @@ def download_buildings(stat_areas):
     buildings = buildings[["geometry"]].explode(index_parts=False)
     buildings = buildings.reset_index(drop=True).to_crs(CRS_METRIC)
     buildings["geometry"] = buildings.geometry.apply(make_valid)
-    print(f"Edifici residenziali scaricati: "f"{len(buildings)}")
+    print(f"Edifici residenziali scaricati: {len(buildings)}")
 
     return buildings
 
@@ -159,11 +161,15 @@ def compute_counterfactual_30(stat_areas, stat_grid):
         / coverage.groupby("id")["intersect_area_statistica"].transform("sum")
     )
 
-    return coverage.merge(
+    coverage = coverage.merge(
         areas[["codice_area_statistica", "required_canopy_30"]],
         on="codice_area_statistica",
         how="inner",
     )
+
+    coverage["canopy_gain_factor_30"] = CANOPY_DENSITY * coverage["cell_share"]
+
+    return coverage
 
 # ---------------------------------------------------------------------
 # Rule 300
@@ -197,7 +203,7 @@ def compute_counterfactual_300(buildings, grid):
         ["building_id", "geometry"]
     ]
 
-    cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"}).copy()
+    cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"})
     cells["geometry"] = cells.geometry.buffer(R_PARK)
 
     coverage = gpd.sjoin(
@@ -219,15 +225,8 @@ def compute_counterfactual_300(buildings, grid):
         .merge(benefit, on="cell_id", how="left")
     )
 
-    cell_benefit["benefit_300_count"] = (
-        cell_benefit["benefit_300_count"]
-        .fillna(0)
-        .astype(int)
-    )
-
-    cell_benefit["benefit_300_share"] = (
-        cell_benefit["benefit_300_count"] / len(uncovered)
-    )
+    cell_benefit["benefit_300_count"] = cell_benefit["benefit_300_count"].fillna(0).astype(int)
+    cell_benefit["benefit_300_share"] = cell_benefit["benefit_300_count"] / len(buildings)
 
     return cell_benefit, coverage
 
@@ -283,16 +282,12 @@ def compute_counterfactual_3(buildings, trees, grid, tree_density):
         .count()
     )
 
-    uncovered["existing_trees"] = (
-        uncovered["building_id"].map(counts).fillna(0).astype(int)
-    )
+    uncovered["existing_trees"] = uncovered["building_id"].map(counts).fillna(0).astype(int)
 
     uncovered["required_trees"] = 3 - uncovered["existing_trees"]
-    uncovered["required_green_3"] = (
-        uncovered["required_trees"] / tree_density
-    )
+    uncovered["required_green_3"] = uncovered["required_trees"] / tree_density
 
-    cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"}).copy()
+    cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"})
     cells["geometry"] = cells.geometry.buffer(R_TREE)
 
     coverage = gpd.sjoin(
@@ -360,19 +355,11 @@ def aggregate_results(
         how="left",
     )
 
-    result["meet_3"] = (result["perc_buildings_near_3_trees"] >= 100)
-    result["meet_30"] = (result["perc_canopy_cover_30"] >= 30)
-    result["meet_300"] = (result["perc_buildings_within_300m_park"] >= 100)
+    result["meet_3"] = result["perc_buildings_near_3_trees"] >= 100
+    result["meet_30"] = result["perc_canopy_cover_30"] >= 30
+    result["meet_300"] = result["perc_buildings_within_300m_park"] >= 100
 
-    result["num_conditions_met"] = (
-        result[[
-            "meet_3",
-            "meet_30",
-            "meet_300",
-        ]]
-        .astype(int)
-        .sum(axis=1)
-    )
+    result["num_conditions_met"] = result[["meet_3", "meet_30", "meet_300"]].sum(axis=1)
 
     return result
 
@@ -381,13 +368,7 @@ def aggregate_results(
 # ---------------------------------------------------------------------
 
 def save_results(buildings, result):
-    buildings_out = buildings.drop(columns=["centroid"])
-
-    buildings_out.to_file(
-        BUILDINGS_OUT,
-        layer="buildings_330300",
-        driver="GPKG",
-    )
+    buildings.drop(columns=["centroid"]).to_file(BUILDINGS_OUT, layer="buildings_330300", driver="GPKG")
 
     result = result.rename(
         columns={
@@ -396,10 +377,9 @@ def save_results(buildings, result):
         }
     )
 
-    # Convert geometry explicitly after leaving GeoDataFrame semantics.
-    result_df = pd.DataFrame(result.copy())
+    result_df = pd.DataFrame(result)
 
-    result_df["geometry"] = (result.geometry.to_wkt())
+    result_df["geometry"] = result.geometry.to_wkt()
 
     result_df = result_df[[
         "stat_area_id",
@@ -426,69 +406,29 @@ def save_results(buildings, result):
 # ---------------------------------------------------------------------
 
 def main():
-    stat_areas, parks, grid = (load_layers())
+    stat_areas, parks, grid = load_layers()
 
     stat_grid = gpd.read_file(STAT_GRID)
 
-    print("Righe:", len(stat_grid))
-    print("Colonne:", stat_grid.columns.tolist())
-
-    stat_grid["cell_share"] = (
-        stat_grid["intersect_area_statistica"]
-        / stat_grid.groupby("id")["intersect_area_statistica"].transform("sum")
-    )
-
-    print(
-        stat_grid.loc[
-            stat_grid["id"] == 11684,
-            [
-                "id",
-                "codice_area_statistica",
-                "area_statistica",
-                "intersect_area_statistica",
-                "cell_share",
-            ],
-        ]
-    )
-
-    print(
-        stat_grid.groupby("id")["cell_share"].sum().describe()
-    )
     buildings = download_buildings(stat_areas)
 
-    buildings = (
-        assign_buildings_to_statistical_areas(buildings,stat_areas)
-    )
-    verde = gpd.read_file(
-        PROCESSED_DIR.parent / "verde.gpkg",
-        layer="verde"
-    )
+    buildings = assign_buildings_to_statistical_areas(buildings,stat_areas)
 
     print("Calcolo criterio 300...")
     near_park_flags = compute_rule_300(
         buildings,
         parks,
     )
-    buildings["near_park"] = (near_park_flags)
-    buildings["meet_300"] = (near_park_flags)
+    buildings["near_park"] = near_park_flags
+    buildings["meet_300"] = near_park_flags
 
     # counterfactual benefit
-    cell_benefit_300, coverage_300 = (
-        compute_counterfactual_300(
-            buildings,
-            grid,
-        )
-    )
+    cell_benefit_300, coverage_300 = compute_counterfactual_300(buildings, grid)
 
-    cell_benefit_300.to_csv(
-        CELL_300_BENEFIT_OUT,
-        index=False,
-    )
 
-    coverage_300.to_csv(
-        CELL_300_COVERAGE_OUT,
-        index=False,
-    )
+    cell_benefit_300.to_csv(CELL_300_BENEFIT_OUT, index=False)
+
+    coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
 
     print(
         "Celle con beneficio 300 > 0: "
@@ -506,20 +446,16 @@ def main():
         RAW_DIR / "alberi-manutenzioni.fgb"
     ).to_crs(CRS_METRIC)
 
-    print("Alberi comunali:", len(trees))
-    print("Geometry types:", trees.geometry.geom_type.value_counts())
-    print("CRS:", trees.crs)
-
     print("Calcolo criterio 3...")
 
-    (has_3_trees_flags,meet_3_flags,) = compute_rule_3(
+    has_3_trees_flags, meet_3_flags = compute_rule_3(
         buildings,
         trees,
         near_park_flags,
     )
 
-    buildings["has_3_trees"] = (has_3_trees_flags)
-    buildings["meet_3"] = (meet_3_flags)
+    buildings["has_3_trees"] = has_3_trees_flags
+    buildings["meet_3"] = meet_3_flags
 
     coverage_3 = compute_counterfactual_3(
         buildings,
@@ -529,13 +465,6 @@ def main():
     )
 
     print(coverage_3.head())
-    print("Righe:", len(coverage_3))
-    print("Celle distinte:", coverage_3["cell_id"].nunique())
-    print("Edifici distinti:", coverage_3["building_id"].nunique())
-
-    print(
-        coverage_3[["existing_trees", "required_trees", "required_green_3"]].describe()
-    )
 
     coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
 
@@ -545,9 +474,6 @@ def main():
     )
 
     print("\nCOUNTERFACTUAL 30")
-    print("Righe:", len(coverage_30))
-    print("Celle distinte:", coverage_30["id"].nunique())
-    print("Aree statistiche distinte:", coverage_30["codice_area_statistica"].nunique())
 
     print(
         coverage_30[
@@ -555,26 +481,17 @@ def main():
                 "id",
                 "codice_area_statistica",
                 "cell_share",
-                "required_canopy_30"
+                "required_canopy_30",
+                "canopy_gain_factor_30",
             ]
         ].head(10)
     )
 
-    print(
-        coverage_30[
-            ["required_canopy_30"]
-        ].describe()
-    )
+    print(coverage_30["canopy_gain_factor_30"].describe())
+    coverage_30.to_csv(CELL_30_COVERAGE_OUT, index=False)
 
-    result = aggregate_results(
-        buildings,
-        stat_areas,
-    )
-
-    result_df = save_results(
-        buildings,
-        result,
-    )
+    result = aggregate_results(buildings, stat_areas)
+    save_results(buildings, result)
 
     print()
     print("=" * 80)
@@ -595,20 +512,20 @@ def main():
 
     print(
         "Aree che soddisfano il criterio 3:   "
-        f"{result_df['meet_3'].sum()} / "
-        f"{len(result_df)}"
+        f"{result['meet_3'].sum()} / "
+        f"{len(result)}"
     )
 
     print(
         "Aree che soddisfano il criterio 30:  "
-        f"{result_df['meet_30'].sum()} / "
-        f"{len(result_df)}"
+        f"{result['meet_30'].sum()} / "
+        f"{len(result)}"
     )
 
     print(
         "Aree che soddisfano il criterio 300: "
-        f"{result_df['meet_300'].sum()} / "
-        f"{len(result_df)}\n"
+        f"{result['meet_300'].sum()} / "
+        f"{len(result)}\n"
     )
 
     print(f"Edifici salvati in: {BUILDINGS_OUT}")
