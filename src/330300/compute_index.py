@@ -42,13 +42,8 @@ R_PARK = 300
 
 def expand_bounds(geom, distance):
     minx, miny, maxx, maxy = geom.bounds
-
-    return (
-        minx - distance,
-        miny - distance,
-        maxx + distance,
-        maxy + distance,
-    )
+    
+    return minx - distance, miny - distance, maxx + distance, maxy + distance
 
 # ---------------------------------------------------------------------
 # Load prepared layers
@@ -106,7 +101,7 @@ def assign_buildings_to_statistical_areas(buildings, stat_areas):
     print("Assegnazione edifici alle aree statistiche...")
 
     buildings = buildings.reset_index(drop=True)
-    buildings["building_id"] = np.arange(len(buildings))
+    buildings["building_id"] = buildings.index
     buildings["centroid"] = buildings.geometry.centroid
 
     centroids = gpd.GeoDataFrame(
@@ -143,9 +138,11 @@ def compute_counterfactual_30(stat_areas, stat_grid):
         ["codice_area_statistica", "perc_canopy_cover_30", "geometry"]
     ].copy()
 
+    area = areas.geometry.area
+
     areas["required_canopy_30"] = (
-        0.30 * areas.geometry.area
-        - areas["perc_canopy_cover_30"] / 100 * areas.geometry.area
+        0.30 * area
+        - areas["perc_canopy_cover_30"] / 100 * area
     ).clip(lower=0)
 
     areas = areas[areas["required_canopy_30"] > 0]
@@ -172,7 +169,6 @@ def compute_counterfactual_30(stat_areas, stat_grid):
 # ---------------------------------------------------------------------
 
 def compute_rule_300(buildings, parks):
-    parks = parks[["geometry"]].reset_index(drop=True)
     flags = np.zeros(len(buildings), dtype=bool)
 
     for i, geom in enumerate(tqdm(buildings.geometry, desc="Rule 300")):
@@ -209,11 +205,7 @@ def compute_counterfactual_300(buildings, grid):
         predicate="intersects",
     )[["cell_id", "building_id"]].drop_duplicates()
 
-    benefit = (
-        coverage.groupby("cell_id")["building_id"]
-        .nunique()
-        .rename("benefit_300_count")
-    )
+    benefit = coverage.groupby("cell_id").size().rename("benefit_300_count")
 
     cell_benefit = (
         grid[["id"]]
@@ -231,12 +223,9 @@ def compute_counterfactual_300(buildings, grid):
 # ---------------------------------------------------------------------
 
 def compute_rule_3(buildings, trees, near_park_flags):
-    trees = trees[["geometry"]].reset_index(drop=True)
     has_3_trees = np.zeros(len(buildings), dtype=bool)
 
-    for i, centroid in enumerate(
-        tqdm(buildings["centroid"], desc="Rule 3")
-    ):
+    for i, centroid in enumerate(tqdm(buildings["centroid"], desc="Rule 3")):
         candidate_idx = list(
             trees.sindex.intersection(expand_bounds(centroid, R_TREE))
         )
@@ -293,13 +282,7 @@ def compute_counterfactual_3(buildings, trees, grid):
     )[["cell_id", "building_id"]].drop_duplicates()
 
     return coverage.merge(
-        uncovered[
-            [
-                "building_id",
-                "existing_trees",
-                "required_trees"
-            ]
-        ],
+        uncovered[["building_id", "existing_trees", "required_trees"]],
         on="building_id",
     )
 
@@ -307,10 +290,7 @@ def compute_counterfactual_3(buildings, trees, grid):
 # Aggregate per statistical area
 # ---------------------------------------------------------------------
 
-def aggregate_results(
-    buildings,
-    stat_areas,
-):
+def aggregate_results(buildings, stat_areas):
     print("Aggregazione per area statistica...")
 
     aggregation = (
@@ -318,22 +298,18 @@ def aggregate_results(
         .groupby("codice_area_statistica")
         .agg(
             num_buildings=("building_id", "count"),
-            num_buildings_meet_3=("meet_3","sum"),
-            num_buildings_meet_300=("meet_300","sum"),
+            num_buildings_meet_3=("meet_3", "sum"),
+            num_buildings_meet_300=("meet_300", "sum"),
         )
         .reset_index()
     )
 
     aggregation["perc_buildings_near_3_trees"] = (
-        aggregation["num_buildings_meet_3"]
-        / aggregation["num_buildings"] 
-        * 100
+        aggregation["num_buildings_meet_3"] / aggregation["num_buildings"] * 100
     )
 
     aggregation["perc_buildings_within_300m_park"] = (
-        aggregation["num_buildings_meet_300"]
-        / aggregation["num_buildings"] 
-        * 100
+        aggregation["num_buildings_meet_300"] / aggregation["num_buildings"] * 100
     )
 
     result = stat_areas[[
@@ -388,12 +364,7 @@ def save_results(buildings, result):
         "meet_300",
     ]]
 
-    result_df.to_csv(
-        STAT_AREAS_OUT,
-        index=False,
-    )
-
-    return result_df
+    result_df.to_csv(STAT_AREAS_OUT, index=False)
 
 # ---------------------------------------------------------------------
 # Main
@@ -406,35 +377,11 @@ def main():
 
     buildings = download_buildings(stat_areas)
 
-    buildings = assign_buildings_to_statistical_areas(buildings,stat_areas)
+    buildings = assign_buildings_to_statistical_areas(buildings, stat_areas)
 
     print("Calcolo criterio 300...")
-    near_park_flags = compute_rule_300(
-        buildings,
-        parks,
-    )
-    buildings["near_park"] = near_park_flags
-    buildings["meet_300"] = near_park_flags
-
-    # counterfactual benefit
-    cell_benefit_300, coverage_300 = compute_counterfactual_300(buildings, grid)
-
-
-    cell_benefit_300.to_csv(CELL_300_BENEFIT_OUT, index=False)
-
-    coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
-
-    print(
-        "Celle con beneficio 300 > 0: "
-        f"{(cell_benefit_300['benefit_300_count'] > 0).sum()} "
-        f"/ {len(cell_benefit_300)}"
-    )
-
-    print(
-        "Massimo numero di nuovi edifici coperti "
-        "da una singola cella: "
-        f"{cell_benefit_300['benefit_300_count'].max()}"
-    )
+    buildings["near_park"] = compute_rule_300(buildings, parks)
+    buildings["meet_300"] = buildings["near_park"]
 
     trees = gpd.read_file(
         RAW_DIR / "alberi-manutenzioni.fgb"
@@ -442,75 +389,38 @@ def main():
 
     print("Calcolo criterio 3...")
 
-    has_3_trees_flags, meet_3_flags = compute_rule_3(
-        buildings,
-        trees,
-        near_park_flags,
-    )
-
+    has_3_trees_flags, meet_3_flags = compute_rule_3(buildings, trees, buildings["near_park"])
     buildings["has_3_trees"] = has_3_trees_flags
     buildings["meet_3"] = meet_3_flags
 
+    # counterfactual benefit
+    cell_benefit_300, coverage_300 = compute_counterfactual_300(buildings, grid)
+    cell_benefit_300.to_csv(CELL_300_BENEFIT_OUT, index=False)
+    coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
+
+    
+
     coverage_3 = compute_counterfactual_3(buildings, trees, grid)
-    print("\nCOUNTERFACTUAL 3")
-    print(coverage_3.head())
     coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
 
     coverage_30 = compute_counterfactual_30(stat_areas, stat_grid)
-    print("\nCOUNTERFACTUAL 30")
-    print(
-        coverage_30[
-            [
-                "id",
-                "codice_area_statistica",
-                "cell_share",
-                "required_canopy_30"
-            ]
-        ].head(10)
-    )
-
     coverage_30.to_csv(CELL_30_COVERAGE_OUT, index=False)
 
     result = aggregate_results(buildings, stat_areas)
     save_results(buildings, result)
 
-    print()
-    print("=" * 80)
-    print("CALCOLO 3-30-300 COMPLETATO")
-    print("=" * 80)
-
     print(
-        "Edifici che soddisfano il criterio 3:   "
-        f"{buildings['meet_3'].sum()} / "
-        f"{len(buildings)}"
+        f"\n{'=' * 80}\n"
+        "CALCOLO 3-30-300 COMPLETATO\n"
+        f"{'=' * 80}\n"
+        f"Edifici che soddisfano il criterio 3:   {buildings['meet_3'].sum()} / {len(buildings)}\n"
+        f"Edifici che soddisfano il criterio 300: {buildings['meet_300'].sum()} / {len(buildings)}\n\n"
+        f"Aree che soddisfano il criterio 3:   {result['meet_3'].sum()} / {len(result)}\n"
+        f"Aree che soddisfano il criterio 30:  {result['meet_30'].sum()} / {len(result)}\n"
+        f"Aree che soddisfano il criterio 300: {result['meet_300'].sum()} / {len(result)}\n\n"
+        f"Edifici salvati in: {BUILDINGS_OUT}\n"
+        f"Indice salvato in:  {STAT_AREAS_OUT}"
     )
-
-    print(
-        "Edifici che soddisfano il criterio 300: "
-        f"{buildings['meet_300'].sum()} / "
-        f"{len(buildings)}\n"
-    )
-
-    print(
-        "Aree che soddisfano il criterio 3:   "
-        f"{result['meet_3'].sum()} / "
-        f"{len(result)}"
-    )
-
-    print(
-        "Aree che soddisfano il criterio 30:  "
-        f"{result['meet_30'].sum()} / "
-        f"{len(result)}"
-    )
-
-    print(
-        "Aree che soddisfano il criterio 300: "
-        f"{result['meet_300'].sum()} / "
-        f"{len(result)}\n"
-    )
-
-    print(f"Edifici salvati in: {BUILDINGS_OUT}")
-    print(f"Indice salvato in:  {STAT_AREAS_OUT}")
 
 if __name__ == "__main__":
     main()
