@@ -35,7 +35,7 @@ constraint forall(i in 1..len)(
 );
 
 constraint forall(i in 1..len)(
-    street_cells[i] <= beta * street_space[i] * z[i]
+    street_cells[i] <= beta_streets * street_space[i] * z[i]
 );
 
 constraint forall(i in 1..len)(
