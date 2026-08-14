@@ -152,7 +152,7 @@ def compute_counterfactual_30(stat_areas, stat_grid):
         / coverage.groupby("id")["intersect_area_statistica"].transform("sum")
     )
 
-    coverage = coverage.merge(
+    coverage = coverage.rename(columns={"id": "cell_id"}).merge(
         areas[["codice_area_statistica", "required_canopy_30"]],
         on="codice_area_statistica",
         how="inner",
