@@ -100,7 +100,6 @@ def download_buildings(stat_areas):
 def assign_buildings_to_statistical_areas(buildings, stat_areas):
     print("Assegnazione edifici alle aree statistiche...")
 
-    buildings = buildings.reset_index(drop=True)
     buildings["building_id"] = buildings.index
     buildings["centroid"] = buildings.geometry.centroid
 
@@ -138,11 +137,8 @@ def compute_counterfactual_30(stat_areas, stat_grid):
         ["codice_area_statistica", "perc_canopy_cover_30", "geometry"]
     ].copy()
 
-    area = areas.geometry.area
-
     areas["required_canopy_30"] = (
-        0.30 * area
-        - areas["perc_canopy_cover_30"] / 100 * area
+        areas.geometry.area * (0.30 - areas["perc_canopy_cover_30"] / 100)
     ).clip(lower=0)
 
     areas = areas[areas["required_canopy_30"] > 0]
@@ -188,7 +184,7 @@ def compute_rule_300(buildings, parks):
 # ---------------------------------------------------------------------
 
 def compute_counterfactual_300(buildings, grid):
-    print("Calcolo beneficio controfattuale criterio 300...")
+    print("Calcolo copertura controfattuale criterio 300...")
 
     uncovered = buildings.loc[
         ~buildings["meet_300"],
@@ -214,7 +210,6 @@ def compute_counterfactual_300(buildings, grid):
     )
 
     cell_benefit["benefit_300_count"] = cell_benefit["benefit_300_count"].fillna(0).astype(int)
-    cell_benefit["benefit_300_share"] = cell_benefit["benefit_300_count"] / len(buildings)
 
     return cell_benefit, coverage
 
@@ -268,7 +263,6 @@ def compute_counterfactual_3(buildings, trees, grid):
     )
 
     uncovered["existing_trees"] = uncovered["building_id"].map(counts).fillna(0).astype(int)
-
     uncovered["required_trees"] = 3 - uncovered["existing_trees"]
 
     cells = grid[["id", "geometry"]].rename(columns={"id": "cell_id"})
@@ -281,10 +275,12 @@ def compute_counterfactual_3(buildings, trees, grid):
         predicate="intersects",
     )[["cell_id", "building_id"]].drop_duplicates()
 
-    return coverage.merge(
+    coverage = coverage.merge(
         uncovered[["building_id", "existing_trees", "required_trees"]],
         on="building_id",
     )
+
+    return coverage
 
 # ---------------------------------------------------------------------
 # Aggregate per statistical area
@@ -397,8 +393,6 @@ def main():
     cell_benefit_300, coverage_300 = compute_counterfactual_300(buildings, grid)
     cell_benefit_300.to_csv(CELL_300_BENEFIT_OUT, index=False)
     coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
-
-    
 
     coverage_3 = compute_counterfactual_3(buildings, trees, grid)
     coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
