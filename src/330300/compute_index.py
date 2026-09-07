@@ -210,7 +210,6 @@ def compute_counterfactual_300(buildings, grid):
     )
 
     cell_benefit["benefit_300_count"] = cell_benefit["benefit_300_count"].fillna(0).astype(int)
-    cell_benefit["benefit_300_share"] = cell_benefit["benefit_300_count"] / len(buildings)
 
     return cell_benefit, coverage
 
