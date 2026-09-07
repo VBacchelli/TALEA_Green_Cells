@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 
-from shapely import make_valid
+from shapely import make_valid, force_2d
 from shapely.geometry import Point, Polygon, MultiPolygon
 from tqdm import tqdm
 
@@ -29,22 +29,7 @@ PARKS_OUT = PROCESSED_DIR / "parks.gpkg"
 
 def remove_z(geom):
     """Drop Z coordinate from Polygon / MultiPolygon geometries."""
-
-    if geom is None:
-        return geom
-
-    if geom.geom_type == "MultiPolygon":
-        return MultiPolygon([
-            Polygon(
-                [(x, y) for x, y, *_ in poly.exterior.coords]
-            )
-            for poly in geom.geoms
-        ])
-
-    if geom.geom_type == "Polygon":
-        return Polygon([(x, y) for x, y, *_ in geom.exterior.coords])
-
-    return geom
+    return force_2d(geom)
 
 
 def main():
