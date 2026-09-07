@@ -18,7 +18,7 @@ from warnings import filterwarnings
 filterwarnings("ignore")
 
 
-def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei):
+def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei, gamma_330300, delta, tree_density, canopy_density):
     """
     Generates the parsed file in the Minizinc data format from the input datasets, specifying the output directory and the parameters of the algorithm.
 
@@ -29,6 +29,8 @@ def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei):
     - beta_streets: float, weight for the available street space
     - alpha_yards: float, weight for the utility of the yard space
     - alpha_uhei: float, weight for the UHEI influence in the diff model
+    - gamma_330300: float, weight for the 3-30-300 index
+    - delta: float, minimum intervention size for selected cells
 
     """
 
@@ -45,6 +47,26 @@ def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei):
     df_pop = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath("densità_per_area_statistica.csv"), sep=';')
     gdf_macro = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro.geojson"))
     num_cells = gdf_tot.index.shape[0]
+
+    # 3-30-300
+    buildings_330300 = gpd.read_file(PROCESSED_DATA_DIR_PATH / "330300/buildings_330300.gpkg")
+    num_deficit_300 = (~buildings_330300["meet_300"]).sum()
+    benefit_300 = (pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_300_benefit.csv").set_index("cell_id")
+        .reindex(gdf_tot.index)["benefit_300_count"].fillna(0.0).to_numpy(dtype=float) / num_deficit_300)
+
+    coverage_3 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_3_coverage.csv")
+    benefit_3_counts = (coverage_3
+                .groupby(["cell_id", "required_trees"]).size().unstack(fill_value=0)
+                .reindex(index=gdf_tot.index, columns=[1, 2, 3], fill_value=0).to_numpy(dtype=int))
+    num_deficit_3 = (~buildings_330300["meet_3"]).sum()
+    benefit_3_counts = benefit_3_counts / num_deficit_3
+    
+    coverage_30 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_30_coverage.csv")
+    total_canopy_deficit = (coverage_30[["codice_area_statistica", "required_canopy_30"]]
+        .drop_duplicates()["required_canopy_30"].sum())
+    benefit_30_factor = (coverage_30.groupby("cell_id")["cell_share"].sum()
+        .reindex(gdf_tot.index, fill_value=0).to_numpy(dtype=float) / total_canopy_deficit)
+    
 
     # Macro scale computations
     macro_factors = utils.macro_factor_per_area(gdf_aree, gdf_macro)
@@ -83,6 +105,26 @@ def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei):
                     green_space, 
                     num_areas, 
                     num_trees, 
+                    macro_factors,
+                    full_space)
+
+    elif model == "std_330300":
+        instance = (num_cells,
+                    top_k_param,
+                    beta_streets,
+                    alpha_yards,
+                    delta,
+                    gamma_330300,
+                    tree_density,
+                    canopy_density,
+                    benefit_300,
+                    benefit_3_counts,
+                    benefit_30_factor,
+                    street_space,
+                    ext_space,
+                    green_space,
+                    num_areas,
+                    num_trees,
                     macro_factors,
                     full_space)
     
@@ -166,7 +208,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", 
                         type=str, 
                         default="std", 
-                        choices=["std", "diff", "inverse_uhei", "ndvi"], 
+                        choices=["std", "std_330300", "diff", "inverse_uhei", "ndvi"], 
                         help="Choice of the model to run.")
     parser.add_argument("--max_cells", 
                         type=int, 
@@ -184,6 +226,23 @@ if __name__ == "__main__":
                         type=float, 
                         default=0.0, 
                         help="Weight for the UHEI influence in the diff model. If you choose another model this parameter is ignored.")
+    parser.add_argument("--delta",
+                        type=float,
+                        default=1.0,
+                        help="Minimum intervention size for each selected cell.")
+    parser.add_argument("--gamma_330300",
+                        type=float,
+                        default=1.0,
+                        help="Weight of the counterfactual 3-30-300 benefit.")
+    parser.add_argument("--tree_density",
+                        type=float,
+                        default=0.01,
+                        help="Conversion factor from green surface to number of trees.")
+    parser.add_argument("--canopy_density",
+                        type=float,
+                        default=0.3,
+                        help="Conversion factor from green surface to canopy surface.")
     
     args = parser.parse_args()
-    parse(args.size, args.model, args.max_cells, args.beta_streets, args.alpha_yards, args.alpha_uhei)
+    parse(args.size, args.model, args.max_cells, args.beta_streets, args.alpha_yards, args.alpha_uhei, 
+          args.gamma_330300, args.delta, args.tree_density, args.canopy_density)

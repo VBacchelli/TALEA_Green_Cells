@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument("--model",
                         type=str,
                         default="std",
-                        choices=["std", "diff", "inverse_uhei", "ndvi"],
+                        choices=["std", "std_330300", "diff", "inverse_uhei", "ndvi"],
                         help="Choice of the model to run.")
     parser.add_argument("--res_name",
                         type=str,

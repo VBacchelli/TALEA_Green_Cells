@@ -13,6 +13,7 @@ show_help() {
     echo "  --density_param float  [Macro] Population density weight (default: 0.33)"
     echo "  --green_param float    [Macro] Green space weight (default: 0.33)"
     echo "  --uhei_param float     [Macro] UHEI weight (default: 0.34)"
+    echo "  --factor_330300_param  [Macro] 3-30-300 weight for baseline (included in macro factor)"
     echo "  --beta_streets float   [Micro] Street space weight (default: 0.2)"
     echo "  --alpha_yards float    [Micro] Yard space weight (default: 0.8)"
     echo "  --alpha_uhei float     [Micro] UHEI weight in the diff model, ignored for the other models (default: 0.0)"
@@ -45,6 +46,11 @@ BETA_STREETS=0.2
 ALPHA_YARDS=0.8
 ALPHA_UHEI=0.0
 RES_NAME="result"
+
+GAMMA_330300=1.0
+DELTA=1.0
+TREE_DENSITY=0.01
+CANOPY_DENSITY=0.3
 
 OTHER_ARGS_SEEN=0
 
@@ -135,6 +141,10 @@ emit('density_param', section['density_param'])
 emit('green_param', section['green_param'])
 emit('uhei_param', section['uhei_param'])
 emit('factor_330300_param', section.get('factor_330300_param', 0.0))
+emit('gamma_330300', section.get('gamma_330300', 1.0))
+emit('delta', section.get('delta', 1.0))
+emit('tree_density', section.get('tree_density', 0.01))
+emit('canopy_density', section.get('canopy_density', 0.3))
 emit('beta_streets', section['beta_streets'])
 emit('alpha_yards', section['alpha_yards'])
 emit('alpha_uhei', section['alpha_uhei'])
@@ -191,7 +201,7 @@ python3 src/preprocessing.py \
 echo ""
 
 echo "Running data_parser.py..."
-python3 src/data_parser.py --size "$SIZE" --model "$MODEL" --max_cells "$MAX_CELLS" --beta_streets "$BETA_STREETS" --alpha_yards "$ALPHA_YARDS" --alpha_uhei "$ALPHA_UHEI"
+python3 src/data_parser.py --size "$SIZE" --model "$MODEL" --max_cells "$MAX_CELLS" --beta_streets "$BETA_STREETS" --alpha_yards "$ALPHA_YARDS" --alpha_uhei "$ALPHA_UHEI"  --gamma_330300 "$GAMMA_330300" --delta "$DELTA" --tree_density "$TREE_DENSITY" --canopy_density "$CANOPY_DENSITY"
 echo ""
 
 echo "Running solver.py..."
