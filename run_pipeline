@@ -13,6 +13,7 @@ show_help() {
     echo "  --density_param float  [Macro] Population density weight (default: 0.33)"
     echo "  --green_param float    [Macro] Green space weight (default: 0.33)"
     echo "  --uhei_param float     [Macro] UHEI weight (default: 0.34)"
+    echo "  --factor_330300_param float  [Macro] 3-30-300 weight (default: 0.0)"
     echo "  --beta_streets float   [Micro] Street space weight (default: 0.2)"
     echo "  --alpha_yards float    [Micro] Yard space weight (default: 0.8)"
     echo "  --alpha_uhei float     [Micro] UHEI weight in the diff model, ignored for the other models (default: 0.0)"
@@ -21,7 +22,7 @@ show_help() {
     echo ""
     echo "Notes:"
     echo "- All float parameters must be in the range [0, 1]."
-    echo "- The macro parameters density_param, green_param and uhei_param must sum to 1."
+    echo "- The macro parameters density_param, green_param, uhei_param and factor_330300_param must sum to 1."
     echo ""
     echo "Examples:"
     echo ">> run_pipeline --config configs.yaml --model diff"
@@ -73,7 +74,7 @@ while [[ "$#" -gt 0 ]]; do
             MODEL="$2"
             shift
             ;;
-        --size|--max_cells|--density_param|--green_param|--uhei_param|--beta_streets|--alpha_yards|--alpha_uhei|--res_name)
+        --size|--max_cells|--density_param|--green_param|--uhei_param|--factor_330300_param|--beta_streets|--alpha_yards|--alpha_uhei|--res_name)
             if [[ -n "$CONFIG" ]]; then
                 echo "Error: --config cannot be combined with other parameters like $1 (only --model is allowed with --config)."
                 exit 1
@@ -171,6 +172,7 @@ python3 config/update_config.py \
   --density_param "$DENSITY_PARAM" \
   --green_param "$GREEN_PARAM" \
   --uhei_param "$UHEI_PARAM" \
+  --factor_330300_param "$FACTOR_330300_PARAM"  \
   --beta_streets "$BETA_STREETS" \
   --alpha_yards "$ALPHA_YARDS" \
   --alpha_uhei "$ALPHA_UHEI" \
@@ -185,7 +187,7 @@ echo "Running grid_creation.py..."
 python3 src/grid_creation.py --size "$SIZE"
 echo ""
 
-if [[ "$MODEL" == "std_330300" ]]; then
+if [[ "$MODEL" == "std_330300" ]] || python3 -c "import sys; sys.exit(0 if float('$FACTOR_330300_PARAM') > 0 else 1)"; then
     echo "Running 3-30-300 data preparation..."
     python3 src/330300/prepare_data.py
     python3 src/330300/compute_index.py
