@@ -6,7 +6,7 @@ import pandas as pd
 import rasterio
 
 from shapely import make_valid, force_2d
-from shapely.geometry import Point, Polygon, MultiPolygon
+from shapely.geometry import Point
 from tqdm import tqdm
 
 # ---------------------------------------------------------------------
@@ -28,7 +28,7 @@ PARKS_OUT = PROCESSED_DIR / "parks.gpkg"
 # ---------------------------------------------------------------------
 
 def remove_z(geom):
-    """Drop Z coordinate from Polygon / MultiPolygon geometries."""
+    """Drop Z coordinate from geometries."""
     return force_2d(geom)
 
 

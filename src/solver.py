@@ -1,9 +1,11 @@
-from minizinc import Instance, Model, Solver
-import pandas as pd
+import argparse
+from pathlib import Path
+
 import geopandas as gpd
 import numpy as np
-from pathlib import Path
-import argparse
+import pandas as pd
+
+from minizinc import Instance, Model, Solver
 
 
 WORKING_DIR_PATH = Path.cwd()
@@ -21,62 +23,108 @@ def solve(size, model_name, res_name):
     - size: str, specifying whether to run the model on the city center or on the entire cityscape
     - model_name: str, choice of the model to run
     - res_name: str, name of the result file to be saved
-
     """
 
     model = Model(MODELS_DIR_PATH.joinpath(f"{model_name}_model.mzn"))
-    solver = Solver.lookup('highs')
+    solver = Solver.lookup("highs")
     instance = Instance(solver, model)
     instance.add_file(INSTANCES_DIR_PATH.joinpath(f"{model_name}_instance.dzn"))
 
     result = instance.solve()
-    street_cells = np.array(result.solution.street_cells)
-    yard_cells = np.array(result.solution.yard_cells)
-    utility = np.array(result.solution.utility)
+    solution = result.solution
 
-    df_result = pd.DataFrame(columns=['id', 'street_cells', 'yard_cells', 'utility'])
-    for i in range(len(street_cells)):
-        df_result.loc[len(df_result)] = {
-            'id': None,
-            'street_cells': street_cells[i],
-            'yard_cells': yard_cells[i],
-            'utility': utility[i]
-        }
+    street_cells = np.array(solution.street_cells)
+    yard_cells = np.array(solution.yard_cells)
+    utility = np.array(solution.utility)
+
+    data = {
+        "id": [None] * len(street_cells),
+        "street_cells": street_cells,
+        "yard_cells": yard_cells,
+        "utility": utility,
+    }
+
+    # Extra diagnostics exported only by the 3-30-300 model.
+    # Keeping this conditional avoids changing the output contract of the
+    # other MiniZinc models.
+    if model_name == "std_330300":
+        diagnostic_fields = [
+            "benefit_3",
+            "benefit_30",
+            "benefit_300",
+            "benefit_330300",
+            "base_benefit",
+            "contribution_330300",
+        ]
+
+        for field in diagnostic_fields:
+            if not hasattr(solution, field):
+                raise AttributeError(
+                    f"Il modello std_330300 non espone il campo MiniZinc '{field}'. "
+                    "Controlla che std_330300_model.mzn sia la versione aggiornata."
+                )
+            data[field] = np.array(getattr(solution, field), dtype=float)
+
+    df_result = pd.DataFrame(data)
 
     if size == "center":
         GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("center")
     elif size == "full":
         GRID_DIR_PATH = PROCESSED_DATA_DIR_PATH.joinpath("full")
-    
+
     gdf_data = gpd.read_file(GRID_DIR_PATH.joinpath("final_grid.geojson"))
-    gdf_result = gpd.GeoDataFrame(df_result, geometry=gdf_data.geometry, crs='EPSG:3857')
-    gdf_result['id'] = gdf_data['id']
-    gdf_result['num_areas'] = gdf_data['free_space_number']
-    gdf_result_1 = gdf_result[gdf_result['street_cells'] != 0]
-    gdf_result_2 = gdf_result[gdf_result['yard_cells'] != 0]
-    gdf_result = pd.merge(gdf_result_1, gdf_result_2, on=gdf_result.columns.tolist(), how='outer')
+    gdf_result = gpd.GeoDataFrame(
+        df_result,
+        geometry=gdf_data.geometry,
+        crs="EPSG:3857",
+    )
+    gdf_result["id"] = gdf_data["id"]
+    gdf_result["num_areas"] = gdf_data["free_space_number"]
+
+    # Preserve the original selection semantics: keep every cell receiving
+    # either street or yard allocation.
+    gdf_result_1 = gdf_result[gdf_result["street_cells"] != 0]
+    gdf_result_2 = gdf_result[gdf_result["yard_cells"] != 0]
+    gdf_result = pd.merge(
+        gdf_result_1,
+        gdf_result_2,
+        on=gdf_result.columns.tolist(),
+        how="outer",
+    )
 
     RESULTS_DIR_PATH = WORKING_DIR_PATH.joinpath("results", size, model_name)
     if not RESULTS_DIR_PATH.exists():
         RESULTS_DIR_PATH.mkdir(parents=True)
-    gdf_result.to_file(RESULTS_DIR_PATH.joinpath(f"{res_name}.geojson"), driver='GeoJSON')
+
+    output_path = RESULTS_DIR_PATH.joinpath(f"{res_name}.geojson")
+    gdf_result.to_file(output_path, driver="GeoJSON")
+    print(f"Risultato salvato in: {output_path}")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Solve the linear model for green cells placement optimization (specify again the size).")
-    parser.add_argument("--size",
-                        type=str,
-                        default="full",
-                        choices=["center", "full"],
-                        help="Whether to run the model on the city center or on the entire cityscape.")
-    parser.add_argument("--model",
-                        type=str,
-                        default="std",
-                        choices=["std", "std_330300", "diff", "inverse_uhei", "ndvi"],
-                        help="Choice of the model to run.")
-    parser.add_argument("--res_name",
-                        type=str,
-                        default="result",
-                        help="Name of the result file to be saved.")
-    
+    parser = argparse.ArgumentParser(
+        description="Solve the linear model for green cells placement optimization (specify again the size)."
+    )
+    parser.add_argument(
+        "--size",
+        type=str,
+        default="full",
+        choices=["center", "full"],
+        help="Whether to run the model on the city center or on the entire cityscape.",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="std",
+        choices=["std", "std_330300", "diff", "inverse_uhei", "ndvi"],
+        help="Choice of the model to run.",
+    )
+    parser.add_argument(
+        "--res_name",
+        type=str,
+        default="result",
+        help="Name of the result file to be saved.",
+    )
+
     args = parser.parse_args()
     solve(args.size, args.model, args.res_name)

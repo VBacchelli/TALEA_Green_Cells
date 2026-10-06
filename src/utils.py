@@ -1,12 +1,5 @@
 import numpy as np
 import pandas as pd
-from pathlib import Path
-
-
-WORKING_DIR_PATH = Path.cwd()
-RAW_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "raw_data")
-PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
-
 
 def to_dzn(model, instance):
     """
@@ -23,7 +16,8 @@ def to_dzn(model, instance):
         num_cells, top_k, beta_streets, alpha_yard, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space = instance
 
     elif model == 'std_330300':
-        num_cells, top_k, beta_streets, alpha_yard, delta, gamma_330300, tree_density, canopy_density, benefit_300, benefit_3_counts, benefit_30_factor, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space = instance
+        num_cells, top_k, beta_streets, alpha_yard, delta, gamma_330300, tree_density_street, tree_density_yard, canopy_density_street, canopy_density_yard, \
+        benefit_300, benefit_3_counts, benefit_30_factor, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space = instance
     elif model == 'diff':
         num_cells, top_k, beta_streets, alpha_yard, alpha_uhei, street_space, ext_space, green_space, num_areas, num_trees, macro_factors, full_space, uhei = instance
     elif model == 'inverse_uhei':
@@ -66,8 +60,10 @@ def to_dzn(model, instance):
     elif model == 'std_330300':
         delta_str = 'delta = ' + str(delta) + ';\n'
         gamma_330300_str = 'gamma_330300 = ' + str(gamma_330300) + ';\n'
-        tree_density_str = 'tree_density = ' + str(tree_density) + ';\n'
-        canopy_density_str = 'canopy_density = ' + str(canopy_density) + ';\n'
+        tree_density_street_str = 'tree_density_street = ' + str(tree_density_street) + ';\n'
+        tree_density_yard_str = 'tree_density_yard = ' + str(tree_density_yard) + ';\n'
+        canopy_density_street_str = 'canopy_density_street = ' + str(canopy_density_street) + ';\n'
+        canopy_density_yard_str = 'canopy_density_yard = ' + str(canopy_density_yard) + ';\n'
         benefit_300_str = 'benefit_300 = [ '
         for i in range(num_cells):
             if i == num_cells - 1:
@@ -79,7 +75,8 @@ def to_dzn(model, instance):
         benefit_30_factor_str = ('benefit_30_factor = [ '
             + ', '.join(map(str, benefit_30_factor)) + ' ];\n')
 
-        text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + delta_str + gamma_330300_str + tree_density_str + canopy_density_str + benefit_300_str + benefit_3_counts_str + benefit_30_factor_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str 
+        text = num_cells_str + top_k_str + beta_streets_str + alpha_yard_str + delta_str + gamma_330300_str + tree_density_street_str + tree_density_yard_str + canopy_density_street_str + canopy_density_yard_str \
+             + benefit_300_str + benefit_3_counts_str + benefit_30_factor_str + street_space_str + ext_space_str + green_space_str + num_areas_str + num_trees_str + macro_factors_str + full_space_str 
 
     elif model == 'diff':
         alpha_uhei_str = 'alpha_uhei = ' + str(alpha_uhei) + ';\n'

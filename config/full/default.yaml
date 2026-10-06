@@ -53,6 +53,8 @@ std_330300:
   alpha_uhei: 0.0
   gamma_330300: 1.0
   delta: 1.0
-  tree_density: 0.01
-  canopy_density: 0.3
+  tree_density_street: 0.01
+  tree_density_yard: 0.01
+  canopy_density_street: 0.3
+  canopy_density_yard: 0.3
   res_name: default
