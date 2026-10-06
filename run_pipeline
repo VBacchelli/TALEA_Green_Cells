@@ -185,6 +185,13 @@ echo "Running grid_creation.py..."
 python3 src/grid_creation.py --size "$SIZE"
 echo ""
 
+if [[ "$MODEL" == "std_330300" ]]; then
+    echo "Running 3-30-300 data preparation..."
+    python3 src/330300/prepare_data.py
+    python3 src/330300/compute_index.py
+    echo ""
+fi
+
 echo "Running preprocessing.py..."
 python3 src/preprocessing.py \
   --density_param "$DENSITY_PARAM" \

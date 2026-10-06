@@ -193,6 +193,36 @@ python3 config/update_config.py \
 echo ""
 
 # ============================
+# Ensure 3-30-300 processed data exist
+# ============================
+
+if [[ "$MODEL" == "std_330300" ]]; then
+    REQUIRED_330300_FILES=(
+        "dataset/processed_data/330300/bologna_3_30_300_stat_areas.csv"
+        "dataset/processed_data/330300/buildings_330300.gpkg"
+        "dataset/processed_data/330300/cell_3_coverage.csv"
+        "dataset/processed_data/330300/cell_30_coverage.csv"
+        "dataset/processed_data/330300/cell_300_coverage.csv"
+    )
+
+    MISSING_330300=0
+
+    for file in "${REQUIRED_330300_FILES[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            MISSING_330300=1
+            break
+        fi
+    done
+
+    if [[ "$MISSING_330300" -eq 1 ]]; then
+        echo "3-30-300 processed data missing. Generating them..."
+        python3 src/330300/prepare_data.py
+        python3 src/330300/compute_index.py
+        echo ""
+    fi
+fi
+
+# ============================
 # Run the scripts sequentially
 # ============================
 

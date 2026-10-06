@@ -54,8 +54,16 @@ def macro_factors_computation(density_param=0.33, green_param=0.33, uhei_param=0
             "aree_statistiche_stat.geojson"))
         df_dens = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath(
             "densità_per_area_statistica.csv"), sep=';')
-        df_330300 = pd.read_csv(PROCESSED_DATA_DIR_PATH.joinpath(
-            "330300", "bologna_3_30_300_stat_areas.csv"))
+        
+        # only done if factor_330300>0
+        df_330300 = None
+        if factor_330300_param > 0.0:
+            df_330300 = pd.read_csv(
+                PROCESSED_DATA_DIR_PATH.joinpath(
+                    "330300", "bologna_3_30_300_stat_areas.csv"
+                )
+            )
+        
         max_density = df_dens['Densità'].max()
         max_uhei = gdf_area['uhei'].max()
         factors = []
@@ -68,23 +76,26 @@ def macro_factors_computation(density_param=0.33, green_param=0.33, uhei_param=0
             uhei_factor = row.uhei / max_uhei
             
             # 3-30-300
-            area_330300 = df_330300[df_330300["stat_area_id"]
-                == row.codice_area_statistica].iloc[0]
-            tree_deficit = (
-                100.0 - area_330300["perc_buildings_near_3_trees"]
-            ) / 100.0
-            canopy_deficit = max(
-                0.0,
-                (30.0 - area_330300["perc_canopy_cover_30"]) / 30.0
-            )
-            park_deficit = (
-                100.0 - area_330300["perc_buildings_within_300m_park"]
-            ) / 100.0
-            factor_330300 = (
-                tree_deficit
-                + canopy_deficit
-                + park_deficit
-            ) / 3.0
+            factor_330300 = 0.0
+            
+            if factor_330300_param > 0.0:
+                area_330300 = df_330300[df_330300["stat_area_id"]
+                    == row.codice_area_statistica].iloc[0]
+                tree_deficit = (
+                    100.0 - area_330300["perc_buildings_near_3_trees"]
+                ) / 100.0
+                canopy_deficit = max(
+                    0.0,
+                    (30.0 - area_330300["perc_canopy_cover_30"]) / 30.0
+                )
+                park_deficit = (
+                    100.0 - area_330300["perc_buildings_within_300m_park"]
+                ) / 100.0
+                factor_330300 = (
+                    tree_deficit
+                    + canopy_deficit
+                    + park_deficit
+                ) / 3.0
 
             factors.append((density_param * density_factor) +
                             (green_param * green_factor) + (uhei_param * uhei_factor)+(factor_330300_param*factor_330300))
