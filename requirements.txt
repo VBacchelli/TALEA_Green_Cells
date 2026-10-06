@@ -4,3 +4,5 @@ pyyaml
 sphinx
 sphinx_rtd_theme
 sphinx-design
+rasterio
+osmnx
