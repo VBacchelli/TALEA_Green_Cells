@@ -40,9 +40,8 @@ def main():
     # 1. Administrative boundaries
     # =================================================================
 
-    print("Lettura aree statistiche...")
+    print("Reading statistical areas...")
     stat_areas = (gpd.read_file(STAT_AREAS).to_crs(epsg=4326))
-    print(f"Aree statistiche: {len(stat_areas)}")
 
     # =================================================================
     # 2. Tree canopy raster
@@ -54,7 +53,7 @@ def main():
     #     canopy pixels == 1 become "tree" reference points
     # =================================================================
 
-    print("Lettura raster canopy...")
+    print("Reading canopy raster...")
 
     with rasterio.open(TREE_CANOPY) as src:
         data = src.read(1)
@@ -76,8 +75,6 @@ def main():
             crs=raster_crs,
         )
 
-    print(f"Pixel raster validi: {len(canopy)}")
-
     # The spatial join requires both layers in the same CRS.
     stat_areas_for_canopy = (stat_areas.to_crs(canopy.crs))
 
@@ -93,13 +90,11 @@ def main():
         canopy_by_area["canopy_value"].isin([0, 1])
     ].copy()
 
-    print("Pixel canopy assegnati alle aree statistiche: "f"{len(canopy_by_area_valid)}")
-
     # -----------------------------------------------------------------
     # Rule 30 - canopy percentage per statistical area
     # -----------------------------------------------------------------
 
-    print("Calcolo percentuale canopy per area statistica...")
+    print("Computing canopy percentage for each statistical area...")
 
     canopy_pct = (
         canopy_by_area_valid
@@ -120,14 +115,13 @@ def main():
     # Used by rules 3 and 300
     # =================================================================
 
-    print("Lettura parchi e giardini...")
+    print("Reading parks and gardens...")
     parks = gpd.read_file(DBSN, layer="pe_uins")
 
     parks = parks[
         parks["pe_uins_ty"].isin(["11","1101","1102","1103"])
     ].copy()
 
-    print(f"Parchi selezionati prima del clipping: "f"{len(parks)}")
     parks["geometry"] = (parks["geometry"].apply(remove_z))
     parks["tipo"] = "park or garden"
     parks = (gpd.GeoDataFrame(parks, geometry="geometry", crs=parks.crs).to_crs(epsg=4326))
@@ -150,7 +144,7 @@ def main():
     # Clip parks to statistical areas
     # -----------------------------------------------------------------
 
-    print("Clipping parchi sulle aree statistiche...")
+    print("Clipping parks to statistical areas...")
 
     parks_sindex = parks.sindex
     results = []
@@ -204,7 +198,7 @@ def main():
     # 4. Save prepared layers
     # =================================================================
 
-    print("Salvataggio layer preprocessati...")
+    print("Saving preprocessed layers...")
 
     stat_areas.to_file(
         STAT_AREAS_OUT,
@@ -224,10 +218,10 @@ def main():
 
     print()
     print("=" * 80)
-    print("PREPARAZIONE 3-30-300 COMPLETATA")
+    print("3-30-300 PREPARATION COMPLETE")
     print("=" * 80)
 
-    print(f"Aree statistiche: "f"{len(stat_areas)}")
+    print(f"Statistical areas: "f"{len(stat_areas)}")
 
     print(f"Park polygons:     "f"{len(clipped_parks)}")
 
