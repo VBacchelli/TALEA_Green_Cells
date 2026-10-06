@@ -187,8 +187,10 @@ echo "Running grid_creation.py..."
 python3 src/grid_creation.py --size "$SIZE"
 echo ""
 
-if [[ "$MODEL" == "std_330300" ]] || python3 -c "import sys; sys.exit(0 if float('$FACTOR_330300_PARAM') > 0 else 1)"; then
-    echo "Running 3-30-300 data preparation..."
+NEEDS_MACRO_330300=$(python3 -c "print(1 if float('$FACTOR_330300_PARAM') > 0 else 0)")
+
+if [[ "$MODEL" == "std_330300" || "$NEEDS_MACRO_330300" -eq 1 ]]; then
+    echo "Generating 3-30-300 processed data..."
     python3 src/330300/prepare_data.py
     python3 src/330300/compute_index.py
     echo ""

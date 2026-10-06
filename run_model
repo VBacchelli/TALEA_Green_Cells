@@ -196,30 +196,13 @@ echo ""
 # Ensure 3-30-300 processed data exist
 # ============================
 
-if [[ "$MODEL" == "std_330300" ]] || python3 -c "import sys; sys.exit(0 if float('$FACTOR_330300_PARAM') > 0 else 1)"; then
-    REQUIRED_330300_FILES=(
-        "dataset/processed_data/330300/bologna_3_30_300_stat_areas.csv"
-        "dataset/processed_data/330300/buildings_330300.gpkg"
-        "dataset/processed_data/330300/cell_3_coverage.csv"
-        "dataset/processed_data/330300/cell_30_coverage.csv"
-        "dataset/processed_data/330300/cell_300_coverage.csv"
-    )
+NEEDS_MACRO_330300=$(python3 -c "print(1 if float('$FACTOR_330300_PARAM') > 0 else 0)")
 
-    MISSING_330300=0
-
-    for file in "${REQUIRED_330300_FILES[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            MISSING_330300=1
-            break
-        fi
-    done
-
-    if [[ "$MISSING_330300" -eq 1 ]]; then
-        echo "3-30-300 processed data missing. Generating them..."
-        python3 src/330300/prepare_data.py
-        python3 src/330300/compute_index.py
-        echo ""
-    fi
+if [[ "$MODEL" == "std_330300" || "$NEEDS_MACRO_330300" -eq 1 ]]; then
+    echo "Generating 3-30-300 processed data..."
+    python3 src/330300/prepare_data.py
+    python3 src/330300/compute_index.py
+    echo ""
 fi
 
 # ============================
