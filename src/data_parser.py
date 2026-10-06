@@ -110,75 +110,6 @@ def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei, gamma
     gdf_macro = gpd.read_file(PROCESSED_DATA_DIR_PATH.joinpath("aree_statistiche_macro.geojson"))
     num_cells = gdf_tot.index.shape[0]
 
-    # 3-30-300: preserve sparse cell-statistical-area relations.
-    # No city-wide observed-max normalization and no maximum-coverage logic here.
-    coverage_3 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_3_coverage.csv")
-    coverage_30 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_30_coverage.csv")
-    coverage_300 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_300_coverage.csv")
-
-    cell_to_pos = {cell_id: pos for pos, cell_id in enumerate(gdf_tot.index, start=1)}
-
-    # Dense integer ids are used only as MiniZinc labels for statistical areas.
-    area_values = pd.concat([
-        coverage_3["codice_area_statistica"],
-        coverage_30["codice_area_statistica"],
-        coverage_300["codice_area_statistica"],
-    ], ignore_index=True).dropna().drop_duplicates().tolist()
-    area_to_pos = {area_id: pos for pos, area_id in enumerate(area_values, start=1)}
-
-    # Criterion 3: one sparse relation per (cell, statistical area).
-    # Keep the number of covered deficit buildings for required_trees = 1, 2, 3.
-    req_counts = (
-        coverage_3.groupby(["cell_id", "codice_area_statistica", "required_trees"])
-        .size()
-        .unstack(fill_value=0)
-        .reindex(columns=[1, 2, 3], fill_value=0)
-        .rename(columns={1: "count_req1", 2: "count_req2", 3: "count_req3"})
-        .reset_index()
-    )
-    deficit_3 = (
-        coverage_3[["cell_id", "codice_area_statistica", "deficit_3_area"]]
-        .drop_duplicates(["cell_id", "codice_area_statistica"])
-    )
-    rel3 = req_counts.merge(
-        deficit_3, on=["cell_id", "codice_area_statistica"], how="left"
-    )
-    rel3 = rel3[rel3["cell_id"].isin(cell_to_pos)].copy()
-
-    rel3_cell = rel3["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
-    rel3_area = rel3["codice_area_statistica"].map(area_to_pos).to_numpy(dtype=int)
-    rel3_count_req1 = rel3["count_req1"].to_numpy(dtype=int)
-    rel3_count_req2 = rel3["count_req2"].to_numpy(dtype=int)
-    rel3_count_req3 = rel3["count_req3"].to_numpy(dtype=int)
-    rel3_deficit_area = rel3["deficit_3_area"].to_numpy(dtype=float)
-
-    # Criterion 30: coverage is already one relation per (cell, statistical area).
-    rel30 = coverage_30[
-        ["cell_id", "codice_area_statistica", "cell_share", "required_canopy_30"]
-    ].copy()
-    rel30 = rel30[rel30["cell_id"].isin(cell_to_pos)].copy()
-
-    rel30_cell = rel30["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
-    rel30_area = rel30["codice_area_statistica"].map(area_to_pos).to_numpy(dtype=int)
-    rel30_cell_share = rel30["cell_share"].to_numpy(dtype=float)
-    rel30_required_canopy = rel30["required_canopy_30"].to_numpy(dtype=float)
-
-    # Criterion 300: one sparse relation per (cell, statistical area).
-    # gain_count is the number of currently deficit buildings covered by that cell.
-    rel300 = (
-        coverage_300.groupby(["cell_id", "codice_area_statistica"], as_index=False)
-        .agg(
-            gain_count=("building_id", "count"),
-            deficit_300_area=("deficit_300_area", "first"),
-        )
-    )
-    rel300 = rel300[rel300["cell_id"].isin(cell_to_pos)].copy()
-
-    rel300_cell = rel300["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
-    rel300_area = rel300["codice_area_statistica"].map(area_to_pos).to_numpy(dtype=int)
-    rel300_gain_count = rel300["gain_count"].to_numpy(dtype=int)
-    rel300_deficit_area = rel300["deficit_300_area"].to_numpy(dtype=float)
-
     # Macro scale computations
     macro_factors = utils.macro_factor_per_area(gdf_aree, gdf_macro)
 
@@ -288,6 +219,74 @@ def parse(size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei, gamma
     
     # File creation
     if model == "std_330300":
+        # 3-30-300: preserve sparse cell-statistical-area relations.
+        # No city-wide observed-max normalization and no maximum-coverage logic here.
+        coverage_3 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_3_coverage.csv")
+        coverage_30 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_30_coverage.csv")
+        coverage_300 = pd.read_csv(PROCESSED_DATA_DIR_PATH / "330300/cell_300_coverage.csv")
+    
+        cell_to_pos = {cell_id: pos for pos, cell_id in enumerate(gdf_tot.index, start=1)}
+    
+        # Dense integer ids are used only as MiniZinc labels for statistical areas.
+        area_values = pd.concat([
+            coverage_3["codice_area_statistica"],
+            coverage_30["codice_area_statistica"],
+            coverage_300["codice_area_statistica"],
+        ], ignore_index=True).dropna().drop_duplicates().tolist()
+        area_to_pos = {area_id: pos for pos, area_id in enumerate(area_values, start=1)}
+    
+        # Criterion 3: one sparse relation per (cell, statistical area).
+        # Keep the number of covered deficit buildings for required_trees = 1, 2, 3.
+        req_counts = (
+            coverage_3.groupby(["cell_id", "codice_area_statistica", "required_trees"])
+            .size()
+            .unstack(fill_value=0)
+            .reindex(columns=[1, 2, 3], fill_value=0)
+            .rename(columns={1: "count_req1", 2: "count_req2", 3: "count_req3"})
+            .reset_index()
+        )
+        deficit_3 = (
+            coverage_3[["cell_id", "codice_area_statistica", "deficit_3_area"]]
+            .drop_duplicates(["cell_id", "codice_area_statistica"])
+        )
+        rel3 = req_counts.merge(
+            deficit_3, on=["cell_id", "codice_area_statistica"], how="left"
+        )
+        rel3 = rel3[rel3["cell_id"].isin(cell_to_pos)].copy()
+    
+        rel3_cell = rel3["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
+        rel3_area = rel3["codice_area_statistica"].map(area_to_pos).to_numpy(dtype=int)
+        rel3_count_req1 = rel3["count_req1"].to_numpy(dtype=int)
+        rel3_count_req2 = rel3["count_req2"].to_numpy(dtype=int)
+        rel3_count_req3 = rel3["count_req3"].to_numpy(dtype=int)
+        rel3_deficit_area = rel3["deficit_3_area"].to_numpy(dtype=float)
+    
+        # Criterion 30: coverage is already one relation per (cell, statistical area).
+        rel30 = coverage_30[
+            ["cell_id", "codice_area_statistica", "cell_share", "required_canopy_30"]
+        ].copy()
+        rel30 = rel30[rel30["cell_id"].isin(cell_to_pos)].copy()
+    
+        rel30_cell = rel30["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
+        rel30_area = rel30["codice_area_statistica"].map(area_to_pos).to_numpy(dtype=int)
+        rel30_cell_share = rel30["cell_share"].to_numpy(dtype=float)
+        rel30_required_canopy = rel30["required_canopy_30"].to_numpy(dtype=float)
+    
+        # Criterion 300: one sparse relation per (cell, statistical area).
+        # gain_count is the number of currently deficit buildings covered by that cell.
+        rel300 = (
+            coverage_300.groupby(["cell_id", "codice_area_statistica"], as_index=False)
+            .agg(
+                gain_count=("building_id", "count"),
+                deficit_300_area=("deficit_300_area", "first"),
+            )
+        )
+        rel300 = rel300[rel300["cell_id"].isin(cell_to_pos)].copy()
+    
+        rel300_cell = rel300["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
+        rel300_area = rel300["codice_area_statistica"].map(area_to_pos).to_numpy(dtype=int)
+        rel300_gain_count = rel300["gain_count"].to_numpy(dtype=int)
+        rel300_deficit_area = rel300["deficit_300_area"].to_numpy(dtype=float)
         output_text = _to_dzn_std_330300(
             num_cells, top_k_param, beta_streets, alpha_yards, delta, gamma_330300,
             tree_density_street, tree_density_yard, canopy_density_street, canopy_density_yard, 
