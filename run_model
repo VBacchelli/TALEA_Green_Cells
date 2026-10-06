@@ -196,7 +196,7 @@ echo ""
 # Ensure 3-30-300 processed data exist
 # ============================
 
-if [[ "$MODEL" == "std_330300" ]]; then
+if [[ "$MODEL" == "std_330300" ]] || python3 -c "import sys; sys.exit(0 if float('$FACTOR_330300_PARAM') > 0 else 1)"; then
     REQUIRED_330300_FILES=(
         "dataset/processed_data/330300/bologna_3_30_300_stat_areas.csv"
         "dataset/processed_data/330300/buildings_330300.gpkg"
