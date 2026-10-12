@@ -26,20 +26,21 @@ array [1..len] of float: macro_factors;
 array [1..len] of float: full_space;
 
 % ==================================================================
-% INPUT: CRITERION 3
-%    Legacy counterfactual representation for now
+% INPUT: CRITERION 3 - MAXIMUM COVERAGE
+%
+% Each relation r represents a (cell, deficit building) pair.
+% Each building has an individual deficit of 1, 2 or 3 trees.
 % ==================================================================
 
+int: n_buildings_3;
+int: total_deficit_3;
 int: n_rel_3;
 
 array [1..n_rel_3] of int: rel3_cell;
-array [1..n_rel_3] of int: rel3_area;
+array [1..n_rel_3] of int: rel3_building;
+array [1..n_buildings_3 + 1] of int: rel3_offset;
 
-array [1..n_rel_3] of int: rel3_count_req1;
-array [1..n_rel_3] of int: rel3_count_req2;
-array [1..n_rel_3] of int: rel3_count_req3;
-
-array [1..n_rel_3] of float: rel3_deficit_area;
+array [1..n_buildings_3] of int: required_trees_3;
 
 % ==================================================================
 % INPUT: CRITERION 30
@@ -68,6 +69,7 @@ int: n_rel_300;
 
 array [1..n_rel_300] of int: rel300_cell;
 array [1..n_rel_300] of int: rel300_building;
+array [1..n_buildings_300 + 1] of int: rel300_offset;
 
 % ==================================================================
 % SCALE REFERENCES
@@ -116,7 +118,8 @@ var 0.0..1.0: benefit_300_global;
 
 constraint
     forall (b in 1..n_buildings_300) (
-        y_300[b] = min(1, sum (r in 1..n_rel_300 where rel300_building[r] = b) (z[rel300_cell[r]]))
+        y_300[b] =
+            min(1, sum (r in rel300_offset[b]..(rel300_offset[b + 1] - 1)) (z[rel300_cell[r]]))
     );
 
 constraint
@@ -128,26 +131,32 @@ constraint
         endif;
 
 % ==================================================================
-% CRITERION 3
-%    CURRENT COUNTERFACTUAL FORMULATION
+% MAXIMUM COVERAGE - CRITERION 3
 %
-%    This will later be replaced by building-level maximum coverage.
+% Trees added by a Green Cell can benefit every building in range.
+% Each building's gain is capped at its individual tree deficit.
 % ==================================================================
 
-array [1..n_rel_3] of var float: gain_3_ia = [
-    (
-        rel3_count_req1[r] * min(added_trees[rel3_cell[r]], 1) +
-            rel3_count_req2[r] * min(added_trees[rel3_cell[r]], 2) +
-            rel3_count_req3[r] * min(added_trees[rel3_cell[r]], 3)
-    ) /
-        3.0 |
-        r in 1..n_rel_3,
-];
+array [1..n_buildings_3] of var 0..3: gain_3_building;
 
-array [1..n_rel_3] of var float: benefit_3_ia = [
-    min(1.0, gain_3_ia[r] / rel3_deficit_area[r]) |
-        r in 1..n_rel_3,
-];
+var 0.0..1.0: benefit_3_global;
+
+constraint
+    forall (b in 1..n_buildings_3) (
+        gain_3_building[b] =
+            min(
+                required_trees_3[b],
+                sum (r in rel3_offset[b]..(rel3_offset[b + 1] - 1)) (added_trees[rel3_cell[r]]),
+            )
+    );
+
+constraint
+    benefit_3_global =
+        if total_deficit_3 > 0 then
+            sum (b in 1..n_buildings_3) (gain_3_building[b]) / total_deficit_3
+        else
+            0.0
+        endif;
 
 % ==================================================================
 % CRITERION 30
@@ -192,27 +201,13 @@ array [1..n_rel_30] of var float: benefit_30_ia = [
 % ==================================================================
 
 % ==================================================================
-% CURRENT CELL-LEVEL AGGREGATION FOR CRITERIA 3 AND 30
+% CURRENT CELL-LEVEL AGGREGATION FOR CRITERION 30
 %
-% Still inherited from the counterfactual model.
+% Criterion 3 now uses benefit_3_global.
+% Criterion 30 still uses the counterfactual formulation.
 % ==================================================================
 
-array [1..len] of var 0.0..1.0: benefit_3 :: output_array([1..len]);
-
 array [1..len] of var 0.0..1.0: benefit_30 :: output_array([1..len]);
-
-constraint
-    forall (i in 1..len) (
-        benefit_3[i] =
-            if sum (r in 1..n_rel_3 where rel3_cell[r] = i) (rel3_deficit_area[r]) > 0.0 then
-                sum (r in 1..n_rel_3 where rel3_cell[r] = i) (
-                    rel3_deficit_area[r] * benefit_3_ia[r]
-                ) /
-                    sum (r in 1..n_rel_3 where rel3_cell[r] = i) (rel3_deficit_area[r])
-            else
-                0.0
-            endif
-    );
 
 constraint
     forall (i in 1..len) (

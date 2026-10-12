@@ -120,12 +120,12 @@ def _to_dzn_std_330300_maxcoverage(
     num_trees,
     macro_factors,
     full_space,
+    n_buildings_3,
+    total_deficit_3,
     rel3_cell,
-    rel3_area,
-    rel3_count_req1,
-    rel3_count_req2,
-    rel3_count_req3,
-    rel3_deficit_area,
+    rel3_building,
+    rel3_offset,
+    required_trees_3,
     rel30_cell,
     rel30_area,
     rel30_cell_share,
@@ -134,6 +134,7 @@ def _to_dzn_std_330300_maxcoverage(
     total_deficit_300,
     rel300_cell,
     rel300_building,
+    rel300_offset
 ):
     """Serialize the 3-30-300 maximum-coverage formulation."""
 
@@ -155,14 +156,14 @@ def _to_dzn_std_330300_maxcoverage(
         f"num_trees = {_mzn_array(num_trees)};",
         f"macro_factors = {_mzn_array(macro_factors)};",
         f"full_space = {_mzn_array(full_space)};",
-        # Criterion 3: still unchanged for now
+        # Criterion 3: maximum coverage
+        f"n_buildings_3 = {int(n_buildings_3)};",
+        f"total_deficit_3 = {int(total_deficit_3)};",
         f"n_rel_3 = {len(rel3_cell)};",
         f"rel3_cell = {_mzn_array(rel3_cell, int)};",
-        f"rel3_area = {_mzn_array(rel3_area, int)};",
-        f"rel3_count_req1 = {_mzn_array(rel3_count_req1, int)};",
-        f"rel3_count_req2 = {_mzn_array(rel3_count_req2, int)};",
-        f"rel3_count_req3 = {_mzn_array(rel3_count_req3, int)};",
-        f"rel3_deficit_area = {_mzn_array(rel3_deficit_area)};",
+        f"rel3_building = {_mzn_array(rel3_building, int)};",
+        f"rel3_offset = {_mzn_array(rel3_offset, int)};",
+        f"required_trees_3 = {_mzn_array(required_trees_3, int)};",
         # Criterion 30: still unchanged for now
         f"n_rel_30 = {len(rel30_cell)};",
         f"rel30_cell = {_mzn_array(rel30_cell, int)};",
@@ -175,6 +176,7 @@ def _to_dzn_std_330300_maxcoverage(
         f"n_rel_300 = {len(rel300_cell)};",
         f"rel300_cell = {_mzn_array(rel300_cell, int)};",
         f"rel300_building = {_mzn_array(rel300_building, int)};",
+        f"rel300_offset = {_mzn_array(rel300_offset, int)};"
     ]
 
     return "\n".join(lines) + "\n"
@@ -483,6 +485,81 @@ def parse(
 
         else:
             # ---------------------------------------------------------
+            # Criterion 3 - maximum coverage formulation
+            # One relation per (cell, building)
+            # ---------------------------------------------------------
+
+            rel3_max = coverage_3[coverage_3["cell_id"].isin(cell_to_pos)].copy()
+
+            # Remove duplicate cell-building relations
+            rel3_max = rel3_max.drop_duplicates(subset=["cell_id", "building_id"])
+
+            # Compact building indices for MiniZinc
+            building_values_3 = rel3_max["building_id"].drop_duplicates().tolist()
+
+            building_to_pos_3 = {
+                building_id: pos
+                for pos, building_id in enumerate(building_values_3, start=1)
+            }
+
+            n_buildings_3 = len(building_values_3)
+
+            # Sparse relations
+            rel3_cell_max = rel3_max["cell_id"].map(cell_to_pos).to_numpy(dtype=int)
+
+            rel3_building = (
+                rel3_max["building_id"].map(building_to_pos_3).to_numpy(dtype=int)
+            )
+
+            # Sort sparse relations by building (stable ordering)
+            order_3 = np.argsort(rel3_building, kind="stable")
+
+            rel3_cell_max = rel3_cell_max[order_3]
+            rel3_building = rel3_building[order_3]
+
+            # Count how many relations each building has
+            counts_3 = np.bincount(
+                rel3_building,
+                minlength=n_buildings_3 + 1
+            )[1:]
+
+            # Build CSR offsets with MiniZinc 1-based indexing
+            rel3_offset = np.empty(n_buildings_3 + 1, dtype=int)
+            rel3_offset[0] = 1
+            rel3_offset[1:] = 1 + np.cumsum(counts_3)
+
+            # Preliminary consistency checks
+            assert rel3_offset[0] == 1
+            assert rel3_offset[-1] == len(rel3_cell_max) + 1
+            assert np.all(np.diff(rel3_offset) == counts_3)
+            assert np.array_equal(
+                np.repeat(np.arange(1, n_buildings_3 + 1), counts_3),
+                rel3_building
+            )
+
+            print(
+                f"CSR criterio 3: {n_buildings_3} edifici, "
+                f"{len(rel3_cell_max)} relazioni, "
+                f"{len(rel3_offset)} offset. Verifica superata."
+            )
+
+            # Required trees: one value per building
+            required_trees_3 = (
+                rel3_max.drop_duplicates("building_id")
+                .set_index("building_id")
+                .loc[building_values_3, "required_trees"]
+                .to_numpy(dtype=int)
+            )
+
+            # Global deficit, counting each statistical area once
+            total_deficit_3 = round(
+                3
+                * coverage_3[["codice_area_statistica", "deficit_3_area"]]
+                .drop_duplicates("codice_area_statistica")["deficit_3_area"]
+                .sum()
+            )
+
+            # ---------------------------------------------------------
             # Criterion 300 - maximum coverage formulation
             # One relation per (cell, building)
             # ---------------------------------------------------------
@@ -508,6 +585,38 @@ def parse(
                 rel300["building_id"].map(building_to_pos).to_numpy(dtype=int)
             )
 
+            # CSR: sort criterion-300 relations by building
+            order_300 = np.argsort(rel300_building, kind="stable")
+
+            rel300_cell = rel300_cell[order_300]
+            rel300_building = rel300_building[order_300]
+
+            # Count relations per building
+            counts_300 = np.bincount(
+                rel300_building,
+                minlength=n_buildings_300 + 1
+            )[1:]
+
+            # Build CSR offsets with MiniZinc 1-based indexing
+            rel300_offset = np.empty(n_buildings_300 + 1, dtype=int)
+            rel300_offset[0] = 1
+            rel300_offset[1:] = 1 + np.cumsum(counts_300)
+
+            # Consistency checks
+            assert rel300_offset[0] == 1
+            assert rel300_offset[-1] == len(rel300_cell) + 1
+            assert np.all(np.diff(rel300_offset) == counts_300)
+            assert np.array_equal(
+                np.repeat(np.arange(1, n_buildings_300 + 1), counts_300),
+                rel300_building
+            )
+
+            print(
+                f"CSR criterio 300: {n_buildings_300} edifici, "
+                f"{len(rel300_cell)} relazioni, "
+                f"{len(rel300_offset)} offset. Verifica superata."
+            )
+
             output_text = _to_dzn_std_330300_maxcoverage(
                 num_cells,
                 top_k_param,
@@ -526,12 +635,12 @@ def parse(
                 num_trees,
                 macro_factors,
                 full_space,
-                rel3_cell,
-                rel3_area,
-                rel3_count_req1,
-                rel3_count_req2,
-                rel3_count_req3,
-                rel3_deficit_area,
+                n_buildings_3,
+                total_deficit_3,
+                rel3_cell_max,
+                rel3_building,
+                rel3_offset,
+                required_trees_3,
                 rel30_cell,
                 rel30_area,
                 rel30_cell_share,
@@ -540,6 +649,7 @@ def parse(
                 total_deficit_300,
                 rel300_cell,
                 rel300_building,
+                rel300_offset
             )
     else:
         output_text = utils.to_dzn(model, instance)
