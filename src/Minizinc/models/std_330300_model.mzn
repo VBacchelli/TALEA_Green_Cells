@@ -28,6 +28,7 @@ array[1..len] of float: full_space;
 % ------------------------------------------------------------------
 int: n_rel_3;
 array[1..n_rel_3] of int: rel3_cell;
+array[1..len+1] of int: rel3_offset;
 array[1..n_rel_3] of int: rel3_area; % diagnostic label; not used in objective
 array[1..n_rel_3] of int: rel3_count_req1;
 array[1..n_rel_3] of int: rel3_count_req2;
@@ -39,6 +40,7 @@ array[1..n_rel_3] of float: rel3_deficit_area;
 % ------------------------------------------------------------------
 int: n_rel_30;
 array[1..n_rel_30] of int: rel30_cell;
+array[1..len+1] of int: rel30_offset;
 array[1..n_rel_30] of int: rel30_area; % diagnostic label; not used in objective
 array[1..n_rel_30] of float: rel30_cell_share;
 array[1..n_rel_30] of float: rel30_required_canopy;
@@ -48,6 +50,7 @@ array[1..n_rel_30] of float: rel30_required_canopy;
 % ------------------------------------------------------------------
 int: n_rel_300;
 array[1..n_rel_300] of int: rel300_cell;
+array[1..len+1] of int: rel300_offset;
 array[1..n_rel_300] of int: rel300_area; % diagnostic label; not used in objective
 array[1..n_rel_300] of int: rel300_gain_count;
 array[1..n_rel_300] of float: rel300_deficit_area;
@@ -139,11 +142,15 @@ array[1..len] of var float: contribution_330300 :: output_array([1..len]);
 
 constraint forall(i in 1..len)(
     benefit_3[i] =
-        if sum(r in 1..n_rel_3 where rel3_cell[r] = i)(rel3_deficit_area[r]) > 0.0 then
-            sum(r in 1..n_rel_3 where rel3_cell[r] = i)(
+        if sum(r in rel3_offset[i]..(rel3_offset[i+1]-1))(
+            rel3_deficit_area[r]
+        ) > 0.0 then
+            sum(r in rel3_offset[i]..(rel3_offset[i+1]-1))(
                 rel3_deficit_area[r] * benefit_3_ia[r]
             ) /
-            sum(r in 1..n_rel_3 where rel3_cell[r] = i)(rel3_deficit_area[r])
+            sum(r in rel3_offset[i]..(rel3_offset[i+1]-1))(
+                rel3_deficit_area[r]
+            )
         else
             0.0
         endif
@@ -151,11 +158,15 @@ constraint forall(i in 1..len)(
 
 constraint forall(i in 1..len)(
     benefit_30[i] =
-        if sum(r in 1..n_rel_30 where rel30_cell[r] = i)(rel30_required_canopy[r]) > 0.0 then
-            sum(r in 1..n_rel_30 where rel30_cell[r] = i)(
+        if sum(r in rel30_offset[i]..(rel30_offset[i+1]-1))(
+            rel30_required_canopy[r]
+        ) > 0.0 then
+            sum(r in rel30_offset[i]..(rel30_offset[i+1]-1))(
                 rel30_required_canopy[r] * benefit_30_ia[r]
             ) /
-            sum(r in 1..n_rel_30 where rel30_cell[r] = i)(rel30_required_canopy[r])
+            sum(r in rel30_offset[i]..(rel30_offset[i+1]-1))(
+                rel30_required_canopy[r]
+            )
         else
             0.0
         endif
@@ -163,11 +174,15 @@ constraint forall(i in 1..len)(
 
 constraint forall(i in 1..len)(
     benefit_300[i] =
-        if sum(r in 1..n_rel_300 where rel300_cell[r] = i)(rel300_deficit_area[r]) > 0.0 then
-            sum(r in 1..n_rel_300 where rel300_cell[r] = i)(
+        if sum(r in rel300_offset[i]..(rel300_offset[i+1]-1))(
+            rel300_deficit_area[r]
+        ) > 0.0 then
+            sum(r in rel300_offset[i]..(rel300_offset[i+1]-1))(
                 rel300_deficit_area[r] * benefit_300_ia[r]
             ) /
-            sum(r in 1..n_rel_300 where rel300_cell[r] = i)(rel300_deficit_area[r])
+            sum(r in rel300_offset[i]..(rel300_offset[i+1]-1))(
+                rel300_deficit_area[r]
+            )
         else
             0.0
         endif

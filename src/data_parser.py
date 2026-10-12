@@ -61,6 +61,9 @@ def _to_dzn_std_330300(
     rel300_area,
     rel300_gain_count,
     rel300_deficit_area,
+    rel3_offset,
+    rel30_offset,
+    rel300_offset,
 ):
     """Serialize the sparse cell-statistical-area 3-30-300 formulation."""
     lines = [
@@ -98,9 +101,11 @@ def _to_dzn_std_330300(
         f"rel300_area = {_mzn_array(rel300_area, int)};",
         f"rel300_gain_count = {_mzn_array(rel300_gain_count, int)};",
         f"rel300_deficit_area = {_mzn_array(rel300_deficit_area)};",
+        f"rel3_offset = {_mzn_array(rel3_offset, int)};\n"
+        f"rel30_offset = {_mzn_array(rel30_offset, int)};\n"
+        f"rel300_offset = {_mzn_array(rel300_offset, int)};\n"
     ]
     return "\n".join(lines) + "\n"
-
 
 def _to_dzn_std_330300_maxcoverage(
     num_cells,
@@ -448,6 +453,99 @@ def parse(
             rel300_gain_count = rel300["gain_count"].to_numpy(dtype=int)
 
             rel300_deficit_area = rel300["deficit_300_area"].to_numpy(dtype=float)
+            
+            if model == "std_330300":
+                # Ordina tutte le relazioni del criterio 3 per cella.
+                order_3 = np.argsort(rel3_cell, kind="stable")
+
+                rel3_cell = rel3_cell[order_3]
+                rel3_area = rel3_area[order_3]
+                rel3_count_req1 = rel3_count_req1[order_3]
+                rel3_count_req2 = rel3_count_req2[order_3]
+                rel3_count_req3 = rel3_count_req3[order_3]
+                rel3_deficit_area = rel3_deficit_area[order_3]
+
+                # Offset CSR con indici MiniZinc a partire da 1.
+                counts_3 = np.bincount(rel3_cell, minlength=num_cells + 1)[1:]
+
+                rel3_offset = np.empty(num_cells + 1, dtype=int)
+                rel3_offset[0] = 1
+                rel3_offset[1:] = 1 + np.cumsum(counts_3)
+
+                # Verifica la coerenza della struttura.
+                assert rel3_offset[0] == 1
+                assert rel3_offset[-1] == len(rel3_cell) + 1
+                assert np.all(np.diff(rel3_offset) == counts_3)
+                assert np.array_equal(
+                    np.repeat(np.arange(1, num_cells + 1), counts_3),
+                    rel3_cell
+                )
+
+                print(
+                    f"CSR controfattuale criterio 3: {num_cells} celle, "
+                    f"{len(rel3_cell)} relazioni, "
+                    f"{len(rel3_offset)} offset. Verifica superata."
+                )
+
+                # Ordina le relazioni del criterio 30 per cella.
+                order_30 = np.argsort(rel30_cell, kind="stable")
+
+                rel30_cell = rel30_cell[order_30]
+                rel30_area = rel30_area[order_30]
+                rel30_cell_share = rel30_cell_share[order_30]
+                rel30_required_canopy = rel30_required_canopy[order_30]
+
+                # Offset CSR con indicizzazione MiniZinc a partire da 1.
+                counts_30 = np.bincount(rel30_cell, minlength=num_cells + 1)[1:]
+
+                rel30_offset = np.empty(num_cells + 1, dtype=int)
+                rel30_offset[0] = 1
+                rel30_offset[1:] = 1 + np.cumsum(counts_30)
+
+                # Verifiche di coerenza.
+                assert rel30_offset[-1] == len(rel30_cell) + 1
+                assert np.array_equal(
+                    np.repeat(np.arange(1, num_cells + 1), counts_30),
+                    rel30_cell
+                )
+
+                print(
+                    f"CSR controfattuale criterio 30: {num_cells} celle, "
+                    f"{len(rel30_cell)} relazioni, "
+                    f"{len(rel30_offset)} offset. Verifica superata."
+                )
+
+                # Ordina le relazioni del criterio 300 per cella.
+                order_300 = np.argsort(rel300_cell, kind="stable")
+
+                rel300_cell = rel300_cell[order_300]
+                rel300_area = rel300_area[order_300]
+                rel300_gain_count = rel300_gain_count[order_300]
+                rel300_deficit_area = rel300_deficit_area[order_300]
+
+                # Offset CSR con indicizzazione MiniZinc a partire da 1.
+                counts_300 = np.bincount(
+                    rel300_cell,
+                    minlength=num_cells + 1
+                )[1:]
+
+                rel300_offset = np.empty(num_cells + 1, dtype=int)
+                rel300_offset[0] = 1
+                rel300_offset[1:] = 1 + np.cumsum(counts_300)
+
+                # Verifiche di coerenza.
+                assert rel300_offset[-1] == len(rel300_cell) + 1
+                assert np.all(np.diff(rel300_offset) == counts_300)
+                assert np.array_equal(
+                    np.repeat(np.arange(1, num_cells + 1), counts_300),
+                    rel300_cell
+                )
+
+                print(
+                    f"CSR controfattuale criterio 300: {num_cells} celle, "
+                    f"{len(rel300_cell)} relazioni, "
+                    f"{len(rel300_offset)} offset. Verifica superata."
+                )
 
             output_text = _to_dzn_std_330300(
                 num_cells,
@@ -481,8 +579,10 @@ def parse(
                 rel300_area,
                 rel300_gain_count,
                 rel300_deficit_area,
+                rel3_offset,
+                rel30_offset,
+                rel300_offset,
             )
-
         else:
             # ---------------------------------------------------------
             # Criterion 3 - maximum coverage formulation
