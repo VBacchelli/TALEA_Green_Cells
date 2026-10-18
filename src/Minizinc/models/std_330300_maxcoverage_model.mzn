@@ -116,11 +116,15 @@ array [1..len] of var float: added_canopy = [
 array [1..n_buildings_300] of var 0..1: y_300;
 var 0.0..1.0: benefit_300_global;
 
+
 constraint
     forall (b in 1..n_buildings_300) (
-        y_300[b] =
-            min(1, sum (r in rel300_offset[b]..(rel300_offset[b + 1] - 1)) (z[rel300_cell[r]]))
+        y_300[b] <=
+            sum (r in rel300_offset[b]..(rel300_offset[b + 1] - 1)) (
+                z[rel300_cell[r]]
+            )
     );
+
 
 constraint
     benefit_300_global =
@@ -158,69 +162,42 @@ constraint
             0.0
         endif;
 
-% ==================================================================
-% CRITERION 30
-%     CURRENT COUNTERFACTUAL FORMULATION
-%
-%     This will later be replaced by statistical-area aggregation.
-% ==================================================================
 
-array [1..n_rel_30] of var float: added_canopy_ia = [
-    added_canopy[rel30_cell[r]] * rel30_cell_share[r] |
-        r in 1..n_rel_30,
+% ============================================================
+% MAXIMUM COVERAGE - CRITERION 30
+% ============================================================
+
+int: n_areas_30 = max(rel30_area);
+
+array[1..n_areas_30] of float: required_canopy_30 = [
+    max([rel30_required_canopy[r] |
+        r in 1..n_rel_30 where rel30_area[r] = a] ++ [0.0])
+    | a in 1..n_areas_30
 ];
 
-array [1..n_rel_30] of var float: useful_canopy_ia = [
-    min(added_canopy_ia[r], rel30_required_canopy[r]) |
-        r in 1..n_rel_30,
-];
+array[1..n_areas_30] of var float: gain_30_area;
 
-array [1..n_rel_30] of var float: benefit_30_ia = [
-    min(1.0, useful_canopy_ia[r] / rel30_required_canopy[r]) |
-        r in 1..n_rel_30,
-];
+constraint forall(a in 1..n_areas_30)(
+    gain_30_area[a] =
+        min(
+            required_canopy_30[a],
+            sum(r in 1..n_rel_30 where rel30_area[r] = a)(
+                added_canopy[rel30_cell[r]]
+                * rel30_cell_share[r]
+            )
+        )
+);
 
-% ==================================================================
-% CRITERION 300
-%
-% TODO:
-% Remove the old cell-area benefit_300_ia formulation.
-%
-% The new benefit will be computed from:
-%
-%       sum(b)(y_300[b])
-%       ----------------
-%       total_deficit_300
-%
-% DO NOT use anymore:
-%
-%   rel300_gain_count
-%   rel300_deficit_area
-%   benefit_300_ia
-%
-% ==================================================================
-
-% ==================================================================
-% CURRENT CELL-LEVEL AGGREGATION FOR CRITERION 30
-%
-% Criterion 3 now uses benefit_3_global.
-% Criterion 30 still uses the counterfactual formulation.
-% ==================================================================
-
-array [1..len] of var 0.0..1.0: benefit_30 :: output_array([1..len]);
+var 0.0..1.0: benefit_30_global;
 
 constraint
-    forall (i in 1..len) (
-        benefit_30[i] =
-            if sum (r in 1..n_rel_30 where rel30_cell[r] = i) (rel30_required_canopy[r]) > 0.0 then
-                sum (r in 1..n_rel_30 where rel30_cell[r] = i) (
-                    rel30_required_canopy[r] * benefit_30_ia[r]
-                ) /
-                    sum (r in 1..n_rel_30 where rel30_cell[r] = i) (rel30_required_canopy[r])
-            else
-                0.0
-            endif
-    );
+    benefit_30_global =
+        if sum(required_canopy_30) > 0.0 then
+            sum(gain_30_area) / sum(required_canopy_30)
+        else
+            0.0
+        endif;
+
 
 % ==================================================================
 % BASE BENEFIT
@@ -233,39 +210,36 @@ constraint
         base_benefit[i] = alpha_yard * (yard_cells[i] / max_yard) + (street_cells[i] / max_street)
     );
 
+
 % ==================================================================
-% UTILITY
-%
-% TODO:
-% Reintroduce the 3-30-300 contribution once the three maximum
-% coverage benefits have been defined globally.
+% UTILITY: LOCAL BASELINE COMPONENT
 % ==================================================================
 
 constraint
     forall (i in 1..len) (
         if num_areas[i] == 0.0 then
             utility[i] =
-                macro_factors[i] *
-                    (
-                        base_benefit[i] /
-                            (
-                                (green_space[i] / max_green) + (num_trees[i] / max_trees) + 0.00000001
-                            )
-                    )
+                macro_factors[i] * base_benefit[i] /
+                (
+                    green_space[i] / max_green +
+                    num_trees[i] / max_trees +
+                    0.00000001
+                )
         else
             utility[i] =
-                macro_factors[i] *
-                    (
-                        base_benefit[i] /
-                            (
-                                (num_areas[i] / max_areas) +
-                                    (green_space[i] / max_green) +
-                                    (num_trees[i] / max_trees) +
-                                    0.00000001
-                            )
-                    )
+                macro_factors[i] * base_benefit[i] /
+                (
+                    num_areas[i] / max_areas +
+                    green_space[i] / max_green +
+                    num_trees[i] / max_trees +
+                    0.00000001
+                )
         endif
     );
+
+var 0.0..1.0: benefit_330300_global =
+    (benefit_3_global + benefit_30_global + benefit_300_global) / 3.0;
+
 
 % ==================================================================
 % GREEN CELL FEASIBILITY / LINKING CONSTRAINTS
@@ -289,6 +263,11 @@ constraint sum (i in 1..len) (z[i]) <= top_k;
 % OBJECTIVE
 % ==================================================================
 
-var float: utility_mean = sum (i in 1..len) (utility[i]) / top_k;
+var float: utility_local_mean =
+    sum(i in 1..len)(utility[i]) / top_k;
+
+var float: utility_mean =
+    utility_local_mean +
+    gamma_330300 * benefit_330300_global;
 
 solve maximize utility_mean;
