@@ -96,30 +96,11 @@ array [1..len] of var float: utility;
 % PHYSICAL EFFECT OF SELECTED GREEN CELLS
 % ==================================================================
 
-% Tight upper bound on physically achievable trees per cell.
-array [1..len] of int: max_added_trees = [
-    floor(
-        min(
-            tree_density_street * min(max_street, beta_streets * street_space[i]) +
-            tree_density_yard * min(max_yard, ext_space[i]),
-
-            max(tree_density_street, tree_density_yard) *
-            max(0.0, full_space[i] - green_space[i])
-        )
-    )
-    | i in 1..len
-];
-
-% Avoid unnecessary floor constraints in cells unable to add trees
 array [1..len] of var int: added_trees = [
-    if max_added_trees[i] == 0 then
-        0
-    else
-        floor(
-            tree_density_street * street_cells[i] +
-            tree_density_yard * yard_cells[i]
-        )
-    endif
+    floor(
+        tree_density_street * street_cells[i] +
+        tree_density_yard * yard_cells[i]
+    )
     | i in 1..len
 ];
 
@@ -182,6 +163,15 @@ constraint
             min(
                 required_trees_3[b],
                 sum (r in rel3_offset[b]..(rel3_offset[b + 1] - 1)) (added_trees[rel3_cell[r]]),
+            )
+    );
+
+constraint
+    forall (b in 1..n_buildings_3)(
+        gain_3_building[b] <= 
+            required_trees_3[b] *
+            sum(r in rel3_offset[b]..(rel3_offset[b + 1] - 1)) (
+                z[rel3_cell[r]]
             )
     );
 

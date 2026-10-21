@@ -49,8 +49,8 @@ RES_NAME="result"
 
 GAMMA_330300=1.0
 DELTA=1.0
-TREE_DENSITY_STREET=0.01
-TREE_DENSITY_YARD=0.01
+TREE_DENSITY_STREET=0.2
+TREE_DENSITY_YARD=0.2
 CANOPY_DENSITY_STREET=0.3
 CANOPY_DENSITY_YARD=0.3
 
@@ -145,8 +145,8 @@ emit('uhei_param', section['uhei_param'])
 emit('factor_330300_param', section.get('factor_330300_param', 0.0))
 emit('gamma_330300', section.get('gamma_330300', 1.0))
 emit('delta', section.get('delta', 1.0))
-emit('tree_density_street', section.get('tree_density_street', 0.01))
-emit('tree_density_yard', section.get('tree_density_yard', 0.01))
+emit('tree_density_street', section.get('tree_density_street', 0.2))
+emit('tree_density_yard', section.get('tree_density_yard', 0.2))
 emit('canopy_density_street', section.get('canopy_density_street', 0.3))
 emit('canopy_density_yard', section.get('canopy_density_yard', 0.3))
 emit('beta_streets', section['beta_streets'])
