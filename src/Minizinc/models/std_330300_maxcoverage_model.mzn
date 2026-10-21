@@ -96,9 +96,31 @@ array [1..len] of var float: utility;
 % PHYSICAL EFFECT OF SELECTED GREEN CELLS
 % ==================================================================
 
+% Tight upper bound on physically achievable trees per cell.
+array [1..len] of int: max_added_trees = [
+    floor(
+        min(
+            tree_density_street * min(max_street, beta_streets * street_space[i]) +
+            tree_density_yard * min(max_yard, ext_space[i]),
+
+            max(tree_density_street, tree_density_yard) *
+            max(0.0, full_space[i] - green_space[i])
+        )
+    )
+    | i in 1..len
+];
+
+% Avoid unnecessary floor constraints in cells unable to add trees
 array [1..len] of var int: added_trees = [
-    floor(tree_density_street * street_cells[i] + tree_density_yard * yard_cells[i]) |
-        i in 1..len,
+    if max_added_trees[i] == 0 then
+        0
+    else
+        floor(
+            tree_density_street * street_cells[i] +
+            tree_density_yard * yard_cells[i]
+        )
+    endif
+    | i in 1..len
 ];
 
 array [1..len] of var float: added_canopy = [
@@ -124,6 +146,15 @@ constraint
                 z[rel300_cell[r]]
             )
     );
+
+% Enforce exact coverage with one additional constraint per building
+constraint forall (b in 1..n_buildings_300) (
+    sum(r in rel300_offset[b]..rel300_offset[b + 1] - 1)(
+        z[rel300_cell[r]]
+    )
+    <=
+    (rel300_offset[b + 1] - rel300_offset[b]) * y_300[b]
+);
 
 
 constraint
@@ -245,13 +276,26 @@ var 0.0..1.0: benefit_330300_global =
 % GREEN CELL FEASIBILITY / LINKING CONSTRAINTS
 % ==================================================================
 
-constraint forall (i in 1..len) (street_cells[i] <= beta_streets * street_space[i] * z[i]);
-
-constraint forall (i in 1..len) (yard_cells[i] <= ext_space[i] * z[i]);
+% Original physical linking constraints
+constraint forall (i in 1..len) (
+    street_cells[i] <= beta_streets * street_space[i] * z[i]
+);
+constraint forall (i in 1..len) (
+    yard_cells[i] <= ext_space[i] * z[i]
+);
 
 constraint forall (i in 1..len) (street_cells[i] + yard_cells[i] + green_space[i] <= full_space[i]);
 
 constraint forall (i in 1..len) (street_cells[i] + yard_cells[i] >= delta * z[i]);
+
+% Eliminate cells that cannot satisfy the minimum intervention size.
+constraint forall (i in 1..len where
+    min(max_street, beta_streets * street_space[i]) +
+    min(max_yard, ext_space[i]) < delta \/
+    full_space[i] - green_space[i] < delta
+) (
+    z[i] = 0
+);
 
 % ==================================================================
 % CARDINALITY
@@ -259,15 +303,43 @@ constraint forall (i in 1..len) (street_cells[i] + yard_cells[i] >= delta * z[i]
 
 constraint sum (i in 1..len) (z[i]) <= top_k;
 
+
 % ==================================================================
 % OBJECTIVE
 % ==================================================================
 
-var float: utility_local_mean =
-    sum(i in 1..len)(utility[i]) / top_k;
+% Same territorial weights as the original local utility
+array[1..len] of float: weights = [
+    macro_factors[i] / (
+        (if num_areas[i] == 0.0 then 0.0 else num_areas[i] / max_areas endif)
+        + green_space[i] / max_green
+        + num_trees[i] / max_trees + 1e-8
+    )
+    | i in 1..len
+];
+
+% Mean of the top_k highest territorial weights
+array[1..len] of float: sorted_weights = sort(weights);
+float: scale_330300 =
+    sum(i in len-top_k+1..len)(sorted_weights[i]) / top_k;
+
+% Original local utility, unchanged
+var float: utility_local_mean = sum(utility) / top_k;
+
+% Global 3-30-300 benefit with fixed territorial scaling
+var float: benefit_330300_weighted =
+    scale_330300 * benefit_330300_global;
 
 var float: utility_mean =
-    utility_local_mean +
-    gamma_330300 * benefit_330300_global;
+    utility_local_mean + gamma_330300 * benefit_330300_weighted;
 
 solve maximize utility_mean;
+
+% Objective diagnostics
+output [
+    "scale_330300 = ", show(scale_330300), "\n",
+    "utility_local_mean = ", show(utility_local_mean), "\n",
+    "benefit_330300_global = ", show(benefit_330300_global), "\n",
+    "benefit_330300_weighted = ", show(benefit_330300_weighted), "\n",
+    "utility_mean = ", show(utility_mean), "\n"
+];
