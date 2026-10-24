@@ -17,12 +17,11 @@ cp -r minizinc/lib/* /usr/local/lib &&\
 cp -r minizinc/share/* /usr/local/share &&\
 cp -r minizinc/lib/* /usr/local/lib
 
-# Copy the current directory contents into the container at /app
-COPY . /app
-RUN find /app/config -name "*.yaml" -exec sed -i 's/\r$//' {} +
+# Install Python dependencies before copying application sources so code
+# changes do not invalidate the cached dependency installation layer.
+COPY requirements.txt /app/requirements.txt
 
-# Install Python requirements in a virtual environment. Keep access to the
-# distribution's PyQGIS packages without asking pip to uninstall apt packages.
+# Keep access to Debian's PyQGIS packages without replacing apt-managed packages.
 RUN apt-get update && \
 apt-get install -y python3-pip python3-venv wget unzip && \
 python3 -m venv --system-site-packages /opt/talea-venv && \
@@ -30,6 +29,10 @@ python3 -m venv --system-site-packages /opt/talea-venv && \
 
 # Use the virtual environment for all subsequent Python commands.
 ENV PATH="/opt/talea-venv/bin:${PATH}"
+
+# Only application changes (rather than requirement changes) invalidate this layer.
+COPY . /app
+RUN find /app/config -name "*.yaml" -exec sed -i 's/\r$//' {} +
 
 # Make the pipeline script executable
 COPY run_pipeline /usr/local/bin/run_pipeline
