@@ -21,9 +21,15 @@ cp -r minizinc/lib/* /usr/local/lib
 COPY . /app
 RUN find /app/config -name "*.yaml" -exec sed -i 's/\r$//' {} +
 
+# Install Python requirements in a virtual environment. Keep access to the
+# distribution's PyQGIS packages without asking pip to uninstall apt packages.
 RUN apt-get update && \
-apt-get install -y python3-pip python3-pip wget unzip && \
-pip3 install --break-system-packages -r requirements.txt
+apt-get install -y python3-pip python3-venv wget unzip && \
+python3 -m venv --system-site-packages /opt/talea-venv && \
+/opt/talea-venv/bin/python -m pip install -r requirements.txt
+
+# Use the virtual environment for all subsequent Python commands.
+ENV PATH="/opt/talea-venv/bin:${PATH}"
 
 # Make the pipeline script executable
 COPY run_pipeline /usr/local/bin/run_pipeline
