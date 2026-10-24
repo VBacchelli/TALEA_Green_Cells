@@ -52,7 +52,7 @@ class CoverageData:
     area_positions: dict
 
 
-def _load_base_data(size, model):
+def _load_base_data(size):
     if size == "center":
         path = CENTER_GRID_DIR_PATH
     elif size == "full":
@@ -93,16 +93,21 @@ def _load_base_data(size, model):
         num_areas[idx] = float(row["free_space_number"]) + (1 if street_space[idx] > 0 else 0)
         num_trees[idx] = float(row["tree_number"]) + 1
 
-    if model in MODELS_330300:
-        grid_area = grid.geometry.area.to_numpy()
-        real_area = grid.to_crs("EPSG:32632").geometry.area.to_numpy()
-        if np.any(grid_area <= 0):
-            raise ValueError("Cells with negative area")
-        factor = real_area / grid_area
-        street_space *= factor
-        ext_space *= factor
-        green_space *= factor
-        full_space *= factor
+    # The source grid and its surface attributes use EPSG:3857 planar areas.
+    # Convert every model's physical surface inputs to metric areas (UTM 32N).
+    # Keep dimensionless macro_factors and the tree/fragment counts unchanged.
+    # Applying this uniformly also preserves the existing 3-30-300 instances.
+    grid_area = grid.geometry.area.to_numpy()
+    metric_area = grid.to_crs("EPSG:32632").geometry.area.to_numpy()
+    if np.any(~np.isfinite(grid_area)) or np.any(grid_area <= 0):
+        raise ValueError("Grid contains invalid or non-positive projected areas")
+    if np.any(~np.isfinite(metric_area)) or np.any(metric_area <= 0):
+        raise ValueError("Grid contains invalid or non-positive metric areas")
+    factor = metric_area / grid_area
+    street_space *= factor
+    ext_space *= factor
+    green_space *= factor
+    full_space *= factor
 
     return BaseData(
         grid, num_cells, street_space, ext_space, green_space,
@@ -303,7 +308,7 @@ def parse(
     canopy_density_street, canopy_density_yard,
 ):
     """Build one MiniZinc instance from the processed TALEA geospatial datasets."""
-    base = _load_base_data(size, model)
+    base = _load_base_data(size)
     if model in MODELS_330300:
         coverage = _load_coverage(base)
         output_text = _serialize_330300(
