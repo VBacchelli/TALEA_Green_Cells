@@ -298,38 +298,19 @@ constraint sum (i in 1..len) (z[i]) <= top_k;
 % OBJECTIVE
 % ==================================================================
 
-% Same territorial weights as the original local utility
-array[1..len] of float: weights = [
-    macro_factors[i] / (
-        (if num_areas[i] == 0.0 then 0.0 else num_areas[i] / max_areas endif)
-        + green_space[i] / max_green
-        + num_trees[i] / max_trees + 1e-8
-    )
-    | i in 1..len
-];
-
-% Mean of the top_k highest territorial weights
-array[1..len] of float: sorted_weights = sort(weights);
-float: scale_330300 =
-    sum(i in len-top_k+1..len)(sorted_weights[i]) / top_k;
-
-% Original local utility, unchanged
+% Original STD utility
 var float: utility_local_mean = sum(utility) / top_k;
 
-% Global 3-30-300 benefit with fixed territorial scaling
-var float: benefit_330300_weighted =
-    scale_330300 * benefit_330300_global;
-
+% Global 3-30-300 benefit, without additional scaling
 var float: utility_mean =
-    utility_local_mean + gamma_330300 * benefit_330300_weighted;
+    utility_local_mean
+    + gamma_330300 * benefit_330300_global;
 
 solve maximize utility_mean;
 
 % Objective diagnostics
 output [
-    "scale_330300 = ", show(scale_330300), "\n",
     "utility_local_mean = ", show(utility_local_mean), "\n",
     "benefit_330300_global = ", show(benefit_330300_global), "\n",
-    "benefit_330300_weighted = ", show(benefit_330300_weighted), "\n",
     "utility_mean = ", show(utility_mean), "\n"
 ];
