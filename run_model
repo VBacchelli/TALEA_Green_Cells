@@ -193,19 +193,6 @@ python3 config/update_config.py \
 echo ""
 
 # ============================
-# Ensure 3-30-300 processed data exist
-# ============================
-
-NEEDS_MACRO_330300=$(python3 -c "print(1 if float('$FACTOR_330300_PARAM') > 0 else 0)")
-
-if [[ "$MODEL" == "std_330300" || "$MODEL" == "std_330300_maxcoverage" || "$NEEDS_MACRO_330300" -eq 1 ]]; then
-    echo "Generating 3-30-300 processed data..."
-    python3 src/330300/prepare_data.py
-    python3 src/330300/compute_index.py
-    echo ""
-fi
-
-# ============================
 # Run the scripts sequentially
 # ============================
 
