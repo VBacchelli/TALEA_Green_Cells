@@ -50,6 +50,7 @@ _MODEL_FIELDS = {
         'n_buildings_3', 'total_deficit_3', 'n_rel_3',
         'rel3_cell', 'rel3_building', 'rel3_offset', 'required_trees_3',
     ) + _CRITERION_30 + (
+        'total_deficit_30',
         'n_buildings_300', 'total_deficit_300', 'n_rel_300',
         'rel300_cell', 'rel300_building', 'rel300_offset',
     ),
