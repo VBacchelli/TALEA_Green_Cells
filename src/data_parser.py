@@ -201,7 +201,35 @@ def _criterion_300_counterfactual(coverage):
     )
 
 
-def _criterion_3_maxcoverage(coverage):
+def _initial_330300_deficits():
+    """Full initial 3-30-300 deficits, including locations with no reachable cells."""
+    directory = PROCESSED_DATA_DIR_PATH / "330300"
+    buildings = gpd.read_file(
+        directory / "buildings_330300.gpkg",
+        layer="buildings_330300",
+        ignore_geometry=True,
+    )
+    missing_3 = buildings["meet_3"].eq(False)
+    total_3 = int(
+        (3 - buildings.loc[missing_3, "n_trees_50m"].astype(int))
+        .clip(lower=0, upper=3)
+        .sum()
+    )
+    total_300 = int(buildings["meet_300"].eq(False).sum())
+
+    # Same deficit definition as compute_counterfactual_30(), prior to coverage joins.
+    areas = gpd.read_file(
+        directory / "stat_areas.gpkg", layer="stat_areas"
+    ).to_crs("EPSG:32632")
+    total_30 = float((
+        areas.geometry.area *
+        (0.30 - areas["perc_canopy_cover_30"].astype(float) / 100.0)
+    ).clip(lower=0).sum())
+
+    return total_3, total_30, total_300
+
+
+def _criterion_3_maxcoverage(coverage, total_deficit):
     relations = coverage.three[coverage.three["cell_id"].isin(coverage.cell_positions)].copy()
     relations = relations.drop_duplicates(subset=["cell_id", "building_id"])
     building_codes, building_values = pd.factorize(relations["building_id"])
@@ -215,21 +243,15 @@ def _criterion_3_maxcoverage(coverage):
         relations.drop_duplicates("building_id").set_index("building_id")
         .loc[building_values, "required_trees"].to_numpy(dtype=int)
     )
-    total_deficit = round(3 * coverage.three[
-        ["codice_area_statistica", "deficit_3_area"]
-    ].drop_duplicates("codice_area_statistica")["deficit_3_area"].sum())
     return n_buildings, total_deficit, cells, buildings, offsets, required_trees
 
 
-def _criterion_300_maxcoverage(coverage):
+def _criterion_300_maxcoverage(coverage, total_deficit):
     relations = coverage.three_hundred[
         coverage.three_hundred["cell_id"].isin(coverage.cell_positions)
     ].copy()
     building_codes, building_values = pd.factorize(relations["building_id"])
     n_buildings = len(building_values)
-    total_deficit = int(coverage.three_hundred[
-        ["codice_area_statistica", "deficit_300_area"]
-    ].drop_duplicates("codice_area_statistica")["deficit_300_area"].sum())
     cells = relations["cell_id"].map(coverage.cell_positions).to_numpy(dtype=int)
     buildings = building_codes + 1
     order = np.argsort(buildings, kind="stable")
@@ -283,8 +305,10 @@ def _serialize_330300(model, base, coverage, params):
             "rel300_deficit_area", "rel300_offset",
         ), rel300)))
     elif model == "std_330300_maxcoverage":
-        rel3 = _criterion_3_maxcoverage(coverage)
-        rel300 = _criterion_300_maxcoverage(coverage)
+        total_3, total_30, total_300 = _initial_330300_deficits()
+        rel3 = _criterion_3_maxcoverage(coverage, total_3)
+        rel300 = _criterion_300_maxcoverage(coverage, total_300)
+        instance["total_deficit_30"] = total_30
         instance.update(dict(zip((
             "n_buildings_3", "total_deficit_3", "rel3_cell", "rel3_building",
             "rel3_offset", "required_trees_3",
