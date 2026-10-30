@@ -48,6 +48,7 @@ array [1..n_buildings_3] of int: required_trees_3;
 % ==================================================================
 
 int: n_rel_30;
+float: total_deficit_30;
 
 array [1..n_rel_30] of int: rel30_cell;
 array [1..n_rel_30] of int: rel30_area;
@@ -213,8 +214,8 @@ var 0.0..1.0: benefit_30_global;
 
 constraint
     benefit_30_global =
-        if sum(required_canopy_30) > 0.0 then
-            sum(gain_30_area) / sum(required_canopy_30)
+        if total_deficit_30 > 0.0 then
+            sum(gain_30_area) / total_deficit_30
         else
             0.0
         endif;
