@@ -23,7 +23,7 @@ models = {
 # I default coincidono con quelli di src/data_parser.py; il CSV conserva
 # i valori effettivamente usati, anche per STD.
 parser = argparse.ArgumentParser(
-    description="Confronto ex-post KPI 3 e KPI 300, Jaccard celle e spaziale"
+    description="Confronto ex-post KPI 3-30-300, utility TALEA e Jaccard"
 )
 parser.add_argument(
     "--tree-density-street",
@@ -77,8 +77,6 @@ if "utility" not in std_solution.columns:
 
 std_original_utility = std_solution["utility"].sum() / 100
 
-print(f"Utility TALEA originale STD: {std_original_utility:.8f}")
-
 # Ricostruzione indipendente dell'utility TALEA originale.
 # I parametri sono letti dall'istanza MiniZinc STD.
 
@@ -119,42 +117,6 @@ max_yard = base["ext_space"].max()
 max_areas = base["num_areas"].max()
 max_green = base["green_space"].max()
 max_trees = base["num_trees"].max()
-
-# Dati iniziali delle celle selezionate da STD.
-selected_base = base.reindex(std_solution["id"].to_numpy())
-
-if selected_base.isna().any().any():
-    raise ValueError("Celle STD non trovate nell'istanza originale")
-
-# Formula identica all'obiettivo originale MiniZinc.
-base_benefit = (
-    alpha_yard * std_solution["yard_cells"].to_numpy() / max_yard
-    + std_solution["street_cells"].to_numpy() / max_street
-)
-
-penalty = (
-    selected_base["num_areas"].to_numpy() / max_areas
-    + selected_base["green_space"].to_numpy() / max_green
-    + selected_base["num_trees"].to_numpy() / max_trees
-    + 1e-8
-)
-
-reconstructed_utility = (
-    selected_base["macro_factors"].to_numpy()
-    * base_benefit / penalty
-)
-
-reconstructed_mean = reconstructed_utility.sum() / top_k
-
-print(f"Utility STD originale:    {std_original_utility:.8f}")
-print(f"Utility STD ricostruita: {reconstructed_mean:.8f}")
-print(f"Differenza assoluta:     {abs(reconstructed_mean - std_original_utility):.10f}")
-
-if not np.isclose(
-    reconstructed_mean, std_original_utility,
-    rtol=1e-7, atol=1e-7
-):
-    raise ValueError("Ricostruzione dell'utility originale non coerente")
 
 # Il GeoPackage contiene TUTTI gli edifici iniziali: i denominatori non
 # devono escludere quelli irraggiungibili dalle celle candidate.
@@ -244,9 +206,6 @@ total_deficit_30 = float(deficit_30.sum())
 
 if initial_noncompliant_30 <= 0 or total_deficit_30 <= 0:
     raise ValueError("Nessun deficit iniziale per il criterio 30")
-
-print(f"Deficit globale canopy: {total_deficit_30:.6f} m²")
-print(f"Aree statistiche inizialmente non conformi: {initial_noncompliant_30}")
 
 # Relazioni spaziali precomputate: nessun nuovo calcolo geometrico.
 coverage_3 = pd.read_csv(ROOT / "dataset/processed_data/330300/cell_3_coverage.csv")
@@ -423,31 +382,6 @@ for name, solution in solutions.items():
     # Tolleranza numerica di 1e-6 m².
     new_compliant_30 = int((added_canopy_by_area >= deficit_30 - 1e-6).sum())
 
-    # Verifica C30: area più vicina alla conformità.
-    recovery_ratio_30 = gains_30 / deficit_30
-
-    best_area_id = recovery_ratio_30.idxmax()
-    best_recovery_percent = 100 * recovery_ratio_30.loc[best_area_id]
-
-    best_initial_deficit = deficit_30.loc[best_area_id]
-    best_added_canopy = gains_30.loc[best_area_id]
-    best_remaining_deficit = best_initial_deficit - best_added_canopy
-
-    print(
-        f"\n{name} - Verifica C30:"
-        f"\n  Area statistica: {best_area_id}"
-        f"\n  Deficit iniziale: {best_initial_deficit:.2f} m²"
-        f"\n  Canopy recuperata: {best_added_canopy:.2f} m²"
-        f"\n  Deficit residuo: {best_remaining_deficit:.2f} m²"
-        f"\n  Deficit recuperato: {best_recovery_percent:.4f}%"
-        f"\n  Aree diventate conformi: {new_compliant_30}/{initial_noncompliant_30}"
-    )
-
-    # P30 medio: media delle percentuali di deficit recuperato
-    # nelle 22 aree inizialmente non conformi.
-    progress_30_by_area = gains_30 / deficit_30
-    P30_mean_percent = 100 * progress_30_by_area.mean()
-
     # Verifica indipendente di C30:
     # ricostruiamo la percentuale effettiva di canopy post-intervento.
     areas_30 = stat_areas.set_index("codice_area_statistica").loc[deficit_30.index]
@@ -462,14 +396,6 @@ for name, solution in solutions.items():
 
     if recomputed_compliant != new_compliant_30:
         raise ValueError(f"C30 incoerente per {name}")
-
-    print(
-        f"\n{name} - Criterio 30:"
-        f"\n  P30 globale: {100 * filled_deficit_30 / total_deficit_30:.4f}%"
-        f"\n  P30 medio per area: {P30_mean_percent:.4f}%"
-        f"\n  C30: {new_compliant_30}/{initial_noncompliant_30}"
-        f"\n  Massima canopy post-intervento: {final_pct.max():.4f}%"
-    )
 
     rows.append(
         {
