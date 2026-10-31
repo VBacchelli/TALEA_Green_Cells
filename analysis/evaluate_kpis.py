@@ -69,6 +69,93 @@ for name, folder in models.items():
 if not solutions:
     raise FileNotFoundError("Nessun risultato GeoJSON disponibile")
 
+# Utility originale riportata dal solver STD.
+std_solution = solutions["STD"]
+
+if "utility" not in std_solution.columns:
+    raise ValueError("Utility non presente nella soluzione STD")
+
+std_original_utility = std_solution["utility"].sum() / 100
+
+print(f"Utility TALEA originale STD: {std_original_utility:.8f}")
+
+# Ricostruzione indipendente dell'utility TALEA originale.
+# I parametri sono letti dall'istanza MiniZinc STD.
+
+dzn_path = ROOT / "src/Minizinc/instances/std_instance.dzn"
+dzn = dzn_path.read_text(encoding="utf-8")
+
+def read_dzn_array(name):
+    prefix = f"{name} = ["
+    if prefix not in dzn:
+        raise ValueError(f"Parametro MiniZinc mancante: {name}")
+    values = dzn.split(prefix, 1)[1].split("];", 1)[0]
+    return np.fromstring(values, sep=",")
+
+alpha_yard = float(dzn.split("alpha_yard = ", 1)[1].split(";", 1)[0])
+top_k = int(dzn.split("top_k = ", 1)[1].split(";", 1)[0])
+
+fields = [
+    "street_space", "ext_space", "green_space",
+    "num_areas", "num_trees", "macro_factors"
+]
+
+grid_ids = gpd.read_file(
+    ROOT / "dataset/processed_data/full/final_grid.geojson",
+    ignore_geometry=True
+)["id"]
+
+if grid_ids.isna().any() or grid_ids.duplicated().any():
+    raise ValueError("ID del reticolo non validi")
+
+base = pd.DataFrame(
+    {field: read_dzn_array(field) for field in fields},
+    index=grid_ids.to_numpy()
+)
+
+# Riferimenti di scala globali, calcolati su TUTTE le celle.
+max_street = base["street_space"].max()
+max_yard = base["ext_space"].max()
+max_areas = base["num_areas"].max()
+max_green = base["green_space"].max()
+max_trees = base["num_trees"].max()
+
+# Dati iniziali delle celle selezionate da STD.
+selected_base = base.reindex(std_solution["id"].to_numpy())
+
+if selected_base.isna().any().any():
+    raise ValueError("Celle STD non trovate nell'istanza originale")
+
+# Formula identica all'obiettivo originale MiniZinc.
+base_benefit = (
+    alpha_yard * std_solution["yard_cells"].to_numpy() / max_yard
+    + std_solution["street_cells"].to_numpy() / max_street
+)
+
+penalty = (
+    selected_base["num_areas"].to_numpy() / max_areas
+    + selected_base["green_space"].to_numpy() / max_green
+    + selected_base["num_trees"].to_numpy() / max_trees
+    + 1e-8
+)
+
+reconstructed_utility = (
+    selected_base["macro_factors"].to_numpy()
+    * base_benefit / penalty
+)
+
+reconstructed_mean = reconstructed_utility.sum() / top_k
+
+print(f"Utility STD originale:    {std_original_utility:.8f}")
+print(f"Utility STD ricostruita: {reconstructed_mean:.8f}")
+print(f"Differenza assoluta:     {abs(reconstructed_mean - std_original_utility):.10f}")
+
+if not np.isclose(
+    reconstructed_mean, std_original_utility,
+    rtol=1e-7, atol=1e-7
+):
+    raise ValueError("Ricostruzione dell'utility originale non coerente")
+
 # Il GeoPackage contiene TUTTI gli edifici iniziali: i denominatori non
 # devono escludere quelli irraggiungibili dalle celle candidate.
 buildings_path = ROOT / "dataset/processed_data/330300/buildings_330300.gpkg"
@@ -410,15 +497,79 @@ for name, solution in solutions.items():
     )
 
 comparison = pd.DataFrame(rows)
+
+
+# KPI aggregato 3-30-300: media delle tre percentuali.
+comparison["KPI_330300_percent"] = comparison[
+    ["P3_percent", "P30_percent", "P300_percent"]
+].mean(axis=1)
+
+
+# Valutazione ex-post della utility TALEA originale.
+# Stessa funzione obiettivo e stessi parametri per tutti i modelli.
+original_utility_by_model = {}
+
+for name, solution in solutions.items():
+
+    allocations = solution.loc[
+        (solution["street_cells"] + solution["yard_cells"]) > 0,
+        ["id", "street_cells", "yard_cells"]
+    ]
+
+    cell_data = base.reindex(allocations["id"].to_numpy())
+
+    if cell_data.isna().any().any():
+        raise ValueError(f"Celle mancanti nei dati originali: {name}")
+
+    benefit = (
+        alpha_yard * allocations["yard_cells"].to_numpy() / max_yard
+        + allocations["street_cells"].to_numpy() / max_street
+    )
+
+    penalty = (
+        cell_data["num_areas"].to_numpy() / max_areas
+        + cell_data["green_space"].to_numpy() / max_green
+        + cell_data["num_trees"].to_numpy() / max_trees
+        + 1e-8
+    )
+
+    utility = (
+        cell_data["macro_factors"].to_numpy()
+        * benefit / penalty
+    ).sum() / top_k
+
+    original_utility_by_model[name] = float(utility)
+
+# Verifica che il calcolo STD coincida con quello del solver.
+if not np.isclose(
+    original_utility_by_model["STD"],
+    std_original_utility,
+    rtol=1e-7,
+    atol=1e-7
+):
+    raise ValueError("Utility STD non coerente")
+
+# Aggiunta al confronto dei KPI.
+comparison["TALEA_original_utility"] = (
+    comparison["model"].map(original_utility_by_model)
+)
+
+# Variazione percentuale rispetto all'utility originale STD.
+comparison["TALEA_utility_change_percent"] = (
+    100 * (
+        comparison["TALEA_original_utility"] - std_original_utility
+    ) / std_original_utility
+)
+
 print(comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
-# Un unico confronto, estendibile al KPI 30 nel prossimo passo.
+
 output = ROOT / "analysis/kpi_comparison.csv"
 output.parent.mkdir(parents=True, exist_ok=True)
 comparison.to_csv(output, index=False)
 print(f"\nConfronto salvato in: {output}")
 
-# Jaccard tra posizioni esatte e tra zone di influenza delle celle.
+# Jaccard tra gli insiemi di celle selezionate dai diversi modelli.
 # Il primo confronta gli ID delle celle; il secondo confronta superfici
 # geometriche dopo un buffer di 100 m intorno ai POLIGONI selezionati.
 # Le geometrie sono gia' in EPSG:32632 (metri), non in EPSG:3857.
