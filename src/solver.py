@@ -7,6 +7,8 @@ import pandas as pd
 
 from minizinc import Instance, Model, Solver
 
+import utils
+
 
 WORKING_DIR_PATH = Path.cwd()
 PROCESSED_DATA_DIR_PATH = WORKING_DIR_PATH.joinpath("dataset", "processed_data")
@@ -28,7 +30,7 @@ def solve(size, model_name, res_name):
     model = Model(MODELS_DIR_PATH.joinpath(f"{model_name}_model.mzn"))
     solver = Solver.lookup("highs")
     instance = Instance(solver, model)
-    instance.add_file(INSTANCES_DIR_PATH.joinpath(f"{model_name}_instance.dzn"))
+    instance.add_file(INSTANCES_DIR_PATH.joinpath(utils.instance_filename(model_name, res_name)))
 
     result = instance.solve()
     solution = result.solution

@@ -329,7 +329,7 @@ def _serialize_330300(model, base, coverage, params):
 def parse(
     size, model, top_k_param, beta_streets, alpha_yards, alpha_uhei,
     gamma_330300, delta, tree_density_street, tree_density_yard,
-    canopy_density_street, canopy_density_yard,
+    canopy_density_street, canopy_density_yard, res_name="result",
 ):
     """Build one MiniZinc instance from the processed TALEA geospatial datasets."""
     base = _load_base_data(size)
@@ -348,7 +348,7 @@ def parse(
         output_text = utils.to_dzn(model, instance)
 
     INSTANCE_DIR_PATH.mkdir(parents=True, exist_ok=True)
-    instance_path = INSTANCE_DIR_PATH / f"{model}_instance.dzn"
+    instance_path = INSTANCE_DIR_PATH / utils.instance_filename(model, res_name)
     with open(instance_path, "w") as output_file:
         output_file.write(output_text)
 
@@ -439,6 +439,13 @@ if __name__ == "__main__":
         help="Conversion factor from allocated yard green surface to canopy surface.",
     )
 
+    parser.add_argument(
+        "--res_name",
+        type=str,
+        default="result",
+        help="Experiment name for the generated MiniZinc instance.",
+    )
+
     args = parser.parse_args()
     parse(
         args.size,
@@ -453,4 +460,5 @@ if __name__ == "__main__":
         args.tree_density_yard,
         args.canopy_density_street,
         args.canopy_density_yard,
+        args.res_name,
     )

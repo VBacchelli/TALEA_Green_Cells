@@ -9,6 +9,13 @@ import numpy as np
 import pandas as pd
 
 
+def instance_filename(model, res_name="result"):
+    """Preserve baseline instance names while isolating named experiments."""
+    if res_name in ("default", "result"):
+        return f"{model}_instance.dzn"
+    return f"{model}_{res_name}_instance.dzn"
+
+
 _BASE_ARRAYS = (
     'street_space', 'ext_space', 'green_space', 'num_areas',
     'num_trees', 'macro_factors', 'full_space',

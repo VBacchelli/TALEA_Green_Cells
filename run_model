@@ -205,7 +205,7 @@ python3 src/preprocessing.py \
 echo ""
 
 echo "Running data_parser.py..."
-python3 src/data_parser.py --size "$SIZE" --model "$MODEL" --max_cells "$MAX_CELLS" --beta_streets "$BETA_STREETS" --alpha_yards "$ALPHA_YARDS" --alpha_uhei "$ALPHA_UHEI"  --gamma_330300 "$GAMMA_330300" --delta "$DELTA" --tree_density_street "$TREE_DENSITY_STREET" --tree_density_yard "$TREE_DENSITY_YARD" --canopy_density_street "$CANOPY_DENSITY_STREET" --canopy_density_yard "$CANOPY_DENSITY_YARD"
+python3 src/data_parser.py --size "$SIZE" --model "$MODEL" --max_cells "$MAX_CELLS" --beta_streets "$BETA_STREETS" --alpha_yards "$ALPHA_YARDS" --alpha_uhei "$ALPHA_UHEI"  --gamma_330300 "$GAMMA_330300" --delta "$DELTA" --tree_density_street "$TREE_DENSITY_STREET" --tree_density_yard "$TREE_DENSITY_YARD" --canopy_density_street "$CANOPY_DENSITY_STREET" --canopy_density_yard "$CANOPY_DENSITY_YARD" --res_name "$RES_NAME"
 echo ""
 
 echo "Running solver.py..."

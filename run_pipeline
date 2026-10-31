@@ -217,7 +217,8 @@ python3 src/data_parser.py \
   --tree_density_street "$TREE_DENSITY_STREET" \
   --tree_density_yard "$TREE_DENSITY_YARD" \
   --canopy_density_street "$CANOPY_DENSITY_STREET" \
-  --canopy_density_yard "$CANOPY_DENSITY_YARD"
+  --canopy_density_yard "$CANOPY_DENSITY_YARD" \
+  --res_name "$RES_NAME"
 echo ""
 
 echo "Running solver.py..."
