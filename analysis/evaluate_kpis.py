@@ -5,6 +5,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import yaml
 
 # Valutazione ex-post: stessi dati e stesse assunzioni per ogni modello.
 ROOT = next(
@@ -19,23 +20,42 @@ models = {
     "MaxCoverage": "std_330300_maxcoverage",
 }
 
-# Densità comuni della valutazione ex-post, modificabili senza nuovo solving.
-# I default coincidono con quelli di src/data_parser.py; il CSV conserva
-# i valori effettivamente usati, anche per STD.
+# Per gli scenari di sensitività i placement 3-30-300 devono essere
+# ricalcolati con i coefficienti specificati dal rispettivo YAML.
+# STD conserva il placement della baseline, ma è valutato con le stesse
+# densità fisiche dello scenario selezionato.
 parser = argparse.ArgumentParser(
     description="Confronto ex-post KPI 3-30-300, utility TALEA e Jaccard"
 )
 parser.add_argument(
+    "--scenario",
+    choices=("default", "low", "medium", "high"),
+    default="default",
+    help="Scenario tree/canopy definito in config/full/<scenario>.yaml (default: default)",
+)
+parser.add_argument(
     "--tree-density-street",
     type=float,
-    default=0.2,
-    help="Alberi stimati per m² di strada convertita (default: 0.2)",
+    default=None,
+    help="Override ex-post per la baseline default (alberi/m² di strada)",
 )
 parser.add_argument(
     "--tree-density-yard",
     type=float,
-    default=0.2,
-    help="Alberi stimati per m² di cortile convertito (default: 0.2)",
+    default=None,
+    help="Override ex-post per la baseline default (alberi/m² di cortile)",
+)
+parser.add_argument(
+    "--canopy-density-street",
+    type=float,
+    default=None,
+    help="Override ex-post per la baseline default (m² canopy/m² di strada)",
+)
+parser.add_argument(
+    "--canopy-density-yard",
+    type=float,
+    default=None,
+    help="Override ex-post per la baseline default (m² canopy/m² di cortile)",
 )
 parser.add_argument(
     "--spatial-buffer-m",
@@ -44,30 +64,102 @@ parser.add_argument(
     help="Buffer esterno ai poligoni delle celle, in metri (default: 100)",
 )
 args = parser.parse_args()
-TREE_DENSITY_STREET = args.tree_density_street
-TREE_DENSITY_YARD = args.tree_density_yard
+
+density_fields = (
+    "tree_density_street",
+    "tree_density_yard",
+    "canopy_density_street",
+    "canopy_density_yard",
+)
+overrides = {
+    "tree_density_street": args.tree_density_street,
+    "tree_density_yard": args.tree_density_yard,
+    "canopy_density_street": args.canopy_density_street,
+    "canopy_density_yard": args.canopy_density_yard,
+}
+if args.scenario != "default" and any(v is not None for v in overrides.values()):
+    parser.error(
+        "Gli override numerici sono consentiti solo per default: "
+        "i placement low/medium/high devono corrispondere al proprio YAML."
+    )
+
+scenario_path = ROOT / "config" / "full" / f"{args.scenario}.yaml"
+if not scenario_path.is_file():
+    parser.error(f"Profilo scenario inesistente: {scenario_path}")
+
+with scenario_path.open(encoding="utf-8") as config_file:
+    scenario_config = yaml.safe_load(config_file)
+
+scenario_profiles = {}
+for model in ("std_330300", "std_330300_maxcoverage"):
+    profile = scenario_config.get(model) if isinstance(scenario_config, dict) else None
+    if not isinstance(profile, dict):
+        parser.error(f"Profilo {model} assente da {scenario_path}")
+
+    if profile.get("res_name") != args.scenario or profile.get("size") != "full":
+        parser.error(
+            f"Profilo {model}: res_name deve essere '{args.scenario}' "
+            "e size deve essere 'full'."
+        )
+    if profile.get("max_cells") != 100:
+        parser.error(
+            f"Profilo {model}: questa valutazione usa la baseline STD a 100 celle; "
+            "lo sweep su max_cells richiede una valutazione dedicata."
+        )
+
+    values = {}
+    for field in density_fields:
+        try:
+            value = float(profile[field])
+        except (KeyError, TypeError, ValueError):
+            parser.error(f"Valore {field} mancante o non numerico per {model}")
+        if not (np.isfinite(value) and value >= 0):
+            parser.error(f"Valore {field} non valido per {model}: {value}")
+        values[field] = value
+    scenario_profiles[model] = values
+
+if scenario_profiles["std_330300"] != scenario_profiles["std_330300_maxcoverage"]:
+    parser.error("I due modelli 3-30-300 devono utilizzare le stesse densità.")
+
+density_values = scenario_profiles["std_330300"].copy()
+density_values.update({key: val for key, val in overrides.items() if val is not None})
+for key, value in density_values.items():
+    if not (np.isfinite(value) and value >= 0):
+        parser.error(f"{key} deve essere un numero finito >= 0")
+
+TREE_DENSITY_STREET = density_values["tree_density_street"]
+TREE_DENSITY_YARD = density_values["tree_density_yard"]
+CANOPY_DENSITY_STREET = density_values["canopy_density_street"]
+CANOPY_DENSITY_YARD = density_values["canopy_density_yard"]
 SPATIAL_BUFFER_M = args.spatial_buffer_m
-# Coefficienti fisici della canopy, uguali per tutti i modelli.
-# Default coerenti con src/data_parser.py.
-CANOPY_DENSITY_STREET = 0.3
-CANOPY_DENSITY_YARD = 0.3
-if not (np.isfinite(TREE_DENSITY_STREET) and TREE_DENSITY_STREET >= 0):
-    parser.error("--tree-density-street deve essere un numero finito >= 0")
-if not (np.isfinite(TREE_DENSITY_YARD) and TREE_DENSITY_YARD >= 0):
-    parser.error("--tree-density-yard deve essere un numero finito >= 0")
 if not (np.isfinite(SPATIAL_BUFFER_M) and SPATIAL_BUFFER_M > 0):
     parser.error("--spatial-buffer-m deve essere un numero finito > 0")
 
+# Il modello STD non usa tree/canopy in ottimizzazione: resta il baseline.
+# Gli altri due modelli usano i risultati specifici dello scenario.
+result_names = {
+    "STD": "default",
+    "Counterfactual": args.scenario,
+    "MaxCoverage": args.scenario,
+}
 solutions = {}
 for name, folder in models.items():
-    path = ROOT / f"results/full/{folder}/default.geojson"
-    if not path.is_file():
-        print(f"ATTENZIONE: risultato assente per {name}: {path}")
+    result_name = result_names[name]
+    geojson_path = ROOT / "results" / "full" / folder / f"{result_name}.geojson"
+    if not geojson_path.is_file():
+        if args.scenario != "default":
+            raise FileNotFoundError(
+                f"Risultato ottimizzato mancante per {name} nello scenario "
+                f"'{args.scenario}': {geojson_path}. "
+                f"Eseguire prima run_model --config {scenario_path} --model {folder} "
+                "(STD usa sempre il default)."
+            )
+        print(f"ATTENZIONE: risultato assente per {name}: {geojson_path}")
         continue
-    solutions[name] = gpd.read_file(path)
+    solutions[name] = gpd.read_file(geojson_path)
 
-if not solutions:
-    raise FileNotFoundError("Nessun risultato GeoJSON disponibile")
+if "STD" not in solutions:
+    raise FileNotFoundError("Risultato STD default.geojson necessario per il confronto")
 
 # Utility originale riportata dal solver STD.
 std_solution = solutions["STD"]
@@ -423,6 +515,9 @@ for name, solution in solutions.items():
     )
 
 comparison = pd.DataFrame(rows)
+if args.scenario != "default":
+    comparison.insert(0, "scenario", args.scenario)
+    comparison.insert(2, "placement", comparison["model"].map(result_names))
 
 
 # KPI aggregato 3-30-300: media delle tre percentuali.
@@ -490,7 +585,8 @@ comparison["TALEA_utility_change_percent"] = (
 print(comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
 
-output = ROOT / "analysis/kpi_comparison.csv"
+output_suffix = "" if args.scenario == "default" else f"_{args.scenario}"
+output = ROOT / f"analysis/kpi_comparison{output_suffix}.csv"
 output.parent.mkdir(parents=True, exist_ok=True)
 comparison.to_csv(output, index=False)
 print(f"\nConfronto salvato in: {output}")
@@ -540,10 +636,12 @@ for (model_a, ids_a), (model_b, ids_b) in combinations(
     )
 
 jaccard_comparison = pd.DataFrame(jaccard_rows)
+if args.scenario != "default":
+    jaccard_comparison.insert(0, "scenario", args.scenario)
 if not jaccard_comparison.empty:
     print("\nJaccard celle esatte e spaziale (buffer sui poligoni):")
     print(jaccard_comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
-jaccard_output = ROOT / "analysis/jaccard_comparison.csv"
+jaccard_output = ROOT / f"analysis/jaccard_comparison{output_suffix}.csv"
 jaccard_comparison.to_csv(jaccard_output, index=False)
 print(f"Confronto Jaccard salvato in: {jaccard_output}")
