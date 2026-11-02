@@ -29,9 +29,13 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--scenario",
-    choices=("default", "tree_density_low", "tree_density_medium", "tree_density_high"),
+    choices=(
+        "default",
+        "tree_density_low", "tree_density_medium", "tree_density_high",
+        "gamma_0", "gamma_low", "gamma_medium", "gamma_high",
+    ),
     default="default",
-    help="Scenario tree/canopy definito in config/full/<scenario>.yaml (default: default)",
+    help="Scenario di sensitività definito in config/full/<scenario>.yaml (default: default)",
 )
 parser.add_argument(
     "--tree-density-street",
@@ -80,7 +84,7 @@ overrides = {
 if args.scenario != "default" and any(v is not None for v in overrides.values()):
     parser.error(
         "Gli override numerici sono consentiti solo per default: "
-        "i placement low/medium/high devono corrispondere al proprio YAML."
+        "i placement degli scenari di sensitività devono corrispondere al proprio YAML."
     )
 
 scenario_path = ROOT / "config" / "full" / f"{args.scenario}.yaml"
@@ -120,6 +124,23 @@ for model in ("std_330300", "std_330300_maxcoverage"):
 
 if scenario_profiles["std_330300"] != scenario_profiles["std_330300_maxcoverage"]:
     parser.error("I due modelli 3-30-300 devono utilizzare le stesse densità.")
+
+# Lo sweep di gamma mantiene le densità fisiche fisse; il valore effettivo
+# del peso è registrato nei CSV per rendere i confronti riproducibili.
+scenario_gamma = None
+if args.scenario.startswith("gamma_"):
+    gamma_values = []
+    for model in ("std_330300", "std_330300_maxcoverage"):
+        try:
+            gamma = float(scenario_config[model]["gamma_330300"])
+        except (KeyError, TypeError, ValueError):
+            parser.error(f"gamma_330300 mancante o non numerico per {model}")
+        if not np.isfinite(gamma):
+            parser.error(f"gamma_330300 non finito per {model}")
+        gamma_values.append(gamma)
+    if not np.isclose(gamma_values[0], gamma_values[1], rtol=0, atol=1e-12):
+        parser.error("I due modelli devono utilizzare lo stesso gamma_330300.")
+    scenario_gamma = gamma_values[0]
 
 density_values = scenario_profiles["std_330300"].copy()
 density_values.update({key: val for key, val in overrides.items() if val is not None})
@@ -518,6 +539,8 @@ comparison = pd.DataFrame(rows)
 if args.scenario != "default":
     comparison.insert(0, "scenario", args.scenario)
     comparison.insert(2, "placement", comparison["model"].map(result_names))
+    if scenario_gamma is not None:
+        comparison.insert(1, "gamma_330300", scenario_gamma)
 
 
 # KPI aggregato 3-30-300: media delle tre percentuali.
@@ -638,6 +661,8 @@ for (model_a, ids_a), (model_b, ids_b) in combinations(
 jaccard_comparison = pd.DataFrame(jaccard_rows)
 if args.scenario != "default":
     jaccard_comparison.insert(0, "scenario", args.scenario)
+    if scenario_gamma is not None:
+        jaccard_comparison.insert(1, "gamma_330300", scenario_gamma)
 if not jaccard_comparison.empty:
     print("\nJaccard celle esatte e spaziale (buffer sui poligoni):")
     print(jaccard_comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
