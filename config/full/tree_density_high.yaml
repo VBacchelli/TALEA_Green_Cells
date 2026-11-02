@@ -16,7 +16,7 @@ std_330300:
   tree_density_yard: 0.015
   canopy_density_street: 0.3
   canopy_density_yard: 0.3
-  res_name: high
+  res_name: tree_density_high
 
 std_330300_maxcoverage:
   size: full
@@ -33,4 +33,4 @@ std_330300_maxcoverage:
   tree_density_yard: 0.015
   canopy_density_street: 0.3
   canopy_density_yard: 0.3
-  res_name: high
+  res_name: tree_density_high

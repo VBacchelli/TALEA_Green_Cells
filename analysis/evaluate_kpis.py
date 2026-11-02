@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--scenario",
-    choices=("default", "low", "medium", "high"),
+    choices=("default", "tree_density_low", "tree_density_medium", "tree_density_high"),
     default="default",
     help="Scenario tree/canopy definito in config/full/<scenario>.yaml (default: default)",
 )
