@@ -1,0 +1,36 @@
+# Gamma=0 control: disable 3-30-300 contribution in the objective.
+# Tree/canopy densities follow tree_density_medium.yaml; default.yaml is unchanged.
+
+std_330300:
+  size: full
+  max_cells: 100
+  density_param: 0.33
+  green_param: 0.33
+  uhei_param: 0.34
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  gamma_330300: 0.0
+  delta: 1.0
+  tree_density_street: 0.01
+  tree_density_yard: 0.01
+  canopy_density_street: 0.2
+  canopy_density_yard: 0.2
+  res_name: gamma_0
+
+std_330300_maxcoverage:
+  size: full
+  max_cells: 100
+  density_param: 0.33
+  green_param: 0.33
+  uhei_param: 0.34
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  gamma_330300: 0.0
+  delta: 1.0
+  tree_density_street: 0.01
+  tree_density_yard: 0.01
+  canopy_density_street: 0.2
+  canopy_density_yard: 0.2
+  res_name: gamma_0
