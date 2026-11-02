@@ -10,7 +10,7 @@ std_330300:
   beta_streets: 0.2
   alpha_yards: 0.8
   alpha_uhei: 0.0
-  gamma_330300: 0.0
+  gamma_330300: 0.5
   delta: 1.0
   tree_density_street: 0.01
   tree_density_yard: 0.01
@@ -27,7 +27,7 @@ std_330300_maxcoverage:
   beta_streets: 0.2
   alpha_yards: 0.8
   alpha_uhei: 0.0
-  gamma_330300: 0.0
+  gamma_330300: 0.5
   delta: 1.0
   tree_density_street: 0.01
   tree_density_yard: 0.01
