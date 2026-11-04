@@ -354,6 +354,11 @@ def main(bologna_size):
         'weighted_uhei_sum': 'weighted_uhei',
         'weighted_ndvi_sum': 'weighted_ndvi',
     })
+    # Remove numerical area residues from geometric overlaps
+    threshold = 1e-6
+    tiny = (final_grid["free_space_area"] > 0) & (final_grid["free_space_area"] < threshold)
+    final_grid.loc[tiny, ["free_space_area", "free_space_pc"]] = 0.0
+
     uhei_max = final_grid['weighted_uhei'].max()
     final_grid['inverse_uhei'] = uhei_max - final_grid['weighted_uhei']
     final_grid.to_file(GRID_DIR_PATH.joinpath("final_grid.geojson"), driver="GeoJSON")
