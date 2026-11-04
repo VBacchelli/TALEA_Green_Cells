@@ -18,7 +18,6 @@ qgs.setPrefixPath("/usr", True)
 qgs.initQgis()
 
 Processing.initialize()
-qgs.processingRegistry().addProvider(QgsNativeAlgorithms())
 
 
 def save_layer(output_layer, layer_name, path, remove_attrs="geo_point_2d"):
