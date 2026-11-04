@@ -52,14 +52,14 @@ def expand_bounds(geom, distance):
 
 
 def load_layers():
-    print("Lettura layer preprocessati...")
+    print("Loading prepared layers...")
 
     stat_areas = gpd.read_file(STAT_AREAS, layer="stat_areas").to_crs(CRS_METRIC)
     parks = gpd.read_file(PARKS, layer="parks").to_crs(CRS_METRIC)
     grid = gpd.read_file(GRID).to_crs(CRS_METRIC)
 
     print(f"Grid cells:        {len(grid)}")
-    print(f"Aree statistiche: {len(stat_areas)}")
+    print(f"Statistical areas: {len(stat_areas)}")
     print(f"Park polygons:     {len(parks)}")
 
     return stat_areas, parks, grid
@@ -71,7 +71,7 @@ def load_layers():
 
 
 def download_buildings(stat_areas):
-    print("Download edifici OSM...")
+    print("Downloading OSM buildings...")
 
     bounding_polygon = (
         stat_areas.to_crs(4326).geometry.union_all().convex_hull.buffer(0.01)
@@ -97,7 +97,7 @@ def download_buildings(stat_areas):
     buildings = buildings[["geometry"]].explode(index_parts=False)
     buildings = buildings.reset_index(drop=True).to_crs(CRS_METRIC)
     buildings["geometry"] = buildings.geometry.apply(make_valid)
-    print(f"Edifici residenziali scaricati: {len(buildings)}")
+    print(f"Residential buildings downloaded: {len(buildings)}")
 
     return buildings
 
@@ -108,7 +108,7 @@ def download_buildings(stat_areas):
 
 
 def assign_buildings_to_statistical_areas(buildings, stat_areas):
-    print("Assegnazione edifici alle aree statistiche...")
+    print("Assigning buildings to statistical areas...")
 
     buildings["building_id"] = buildings.index
     buildings["centroid"] = buildings.geometry.centroid
@@ -132,7 +132,7 @@ def assign_buildings_to_statistical_areas(buildings, stat_areas):
         .reset_index(drop=True)
     )
 
-    print(f"Edifici assegnati a un'area statistica: {len(buildings)}")
+    print(f"Buildings assigned to a statistical area: {len(buildings)}")
 
     return buildings
 
@@ -143,14 +143,14 @@ def assign_buildings_to_statistical_areas(buildings, stat_areas):
 
 
 def compute_counterfactual_30(stat_areas, stat_grid):
-    print("Calcolo controfattuale criterio 30...")
+    print("Computing Rule 30 counterfactual...")
 
     areas = stat_areas[
         ["codice_area_statistica", "perc_canopy_cover_30", "geometry"]
     ].copy()
 
-    # Deficit residuo di canopy della singola area statistica [m²].
-    # L'area statistica è ricavata dalla geometria metrica del poligono.
+    # Remaining canopy deficit for each statistical area [m²].
+    # Area is derived from the polygon in the metric CRS.
     areas["required_canopy_30"] = (
         areas.geometry.area * (0.30 - areas["perc_canopy_cover_30"] / 100)
     ).clip(lower=0)
@@ -161,16 +161,16 @@ def compute_counterfactual_30(stat_areas, stat_grid):
         ["id", "codice_area_statistica", "intersect_area_statistica"]
     ].copy()
 
-    # Una sola relazione per coppia cella-area, anche se il layer di
-    # intersezione contiene più frammenti geometrici della stessa coppia.
+    # Keep one row per cell-area pair, even when the intersection layer
+    # contains multiple geometry fragments for the same pair.
     coverage = (
         coverage.groupby(["id", "codice_area_statistica"], as_index=False)[
             "intersect_area_statistica"
         ].sum()
     )
 
-    # Quota fisica della cella ricadente in ciascuna area statistica.
-    # In MiniZinc va applicata una sola volta ad added_canopy_i.
+    # Share of each cell that falls within each statistical area.
+    # MiniZinc applies this once to added_canopy_i.
     coverage["cell_share"] = coverage["intersect_area_statistica"] / coverage.groupby(
         "id"
     )["intersect_area_statistica"].transform("sum")
@@ -211,14 +211,14 @@ def compute_rule_300(buildings, parks):
 
 
 def compute_counterfactual_300(buildings, grid):
-    print("Calcolo copertura controfattuale criterio 300...")
+    print("Computing Rule 300 coverage...")
 
     uncovered = buildings.loc[
         ~buildings["meet_300"],
         ["building_id", "codice_area_statistica", "geometry"],
     ].copy()
 
-    # Deficit residuo dell'area: numero di edifici che non soddisfano il criterio 300.
+    # Remaining area deficit: buildings that do not meet Rule 300.
     deficit_300 = (
         uncovered.groupby("codice_area_statistica")
         .size()
@@ -267,8 +267,7 @@ def compute_rule_3(buildings, trees, near_park_flags):
 
     score_3 = np.minimum(n_trees / 3.0, 1.0)
 
-    # Per l'assunzione adottata, la vicinanza a un parco
-    # equivale al pieno soddisfacimento del criterio 3.
+    # Under the current assumption, being near a park fully satisfies Rule 3.
     score_3[np.asarray(near_park_flags, dtype=bool)] = 1.0
 
     return has_3_trees, meet_3, n_trees, score_3
@@ -280,10 +279,10 @@ def compute_rule_3(buildings, trees, near_park_flags):
 
 
 def compute_counterfactual_3(buildings, grid):
-    print("Calcolo controfattuale criterio 3...")
+    print("Computing Rule 3 counterfactual...")
 
-    # Solo edifici che non soddisfano già il criterio 3.
-    # Questo esclude sia edifici con >= 3 alberi sia edifici near_park.
+    # Only buildings that do not already meet Rule 3.
+    # This excludes buildings with >= 3 trees and buildings near a park.
     uncovered = buildings.loc[
         ~buildings["meet_3"],
         [
@@ -296,12 +295,12 @@ def compute_counterfactual_3(buildings, grid):
 
     uncovered["existing_trees"] = uncovered["n_trees_50m"].astype(int)
 
-    # Deficit residuo del singolo edificio rispetto alla soglia dei 3 alberi.
+    # Remaining deficit for each building against the three-tree threshold.
     uncovered["required_trees"] = (
         (3 - uncovered["existing_trees"]).clip(lower=0, upper=3).astype(int)
     )
 
-    # Deficit totale dell'area, espresso in unità normalizzate sul requisito di 3 alberi.
+    # Total area deficit, normalized by the three-tree requirement.
     deficit_3 = (
         uncovered.assign(deficit_building=uncovered["required_trees"] / 3.0)
         .groupby("codice_area_statistica")["deficit_building"]
@@ -337,21 +336,6 @@ def compute_counterfactual_3(buildings, grid):
         how="left",
     )
 
-    # Contributi elementari mantenuti per compatibilità/diagnostica.
-    # Il benefit_3_ia finale dipende da added_trees_i in MiniZinc e va poi
-    # diviso per deficit_3_area; qui non si assume alcun added_trees fisso.
-    coverage["benefit_tree_1"] = np.where(
-        coverage["required_trees"] >= 1, 1.0 / 3.0, 0.0
-    )
-
-    coverage["benefit_tree_2"] = np.where(
-        coverage["required_trees"] >= 2, 1.0 / 3.0, 0.0
-    )
-
-    coverage["benefit_tree_3"] = np.where(
-        coverage["required_trees"] >= 3, 1.0 / 3.0, 0.0
-    )
-
     return coverage
 
 
@@ -361,35 +345,35 @@ def compute_counterfactual_3(buildings, grid):
 
 
 def validate_counterfactual_coverages(coverage_3, coverage_30, coverage_300):
-    print("Controlli diagnostici coverage controfattuali...")
+    print("Validating counterfactual coverage...")
 
     if not coverage_3["required_trees"].isin([1, 2, 3]).all():
         invalid = sorted(coverage_3.loc[
             ~coverage_3["required_trees"].isin([1, 2, 3]), "required_trees"
         ].unique())
-        raise ValueError(f"required_trees contiene valori non validi: {invalid}")
+        raise ValueError(f"required_trees contains invalid values: {invalid}")
 
     if not (coverage_3["deficit_3_area"] > 0).all():
-        raise ValueError("Esistono aree nel coverage 3 con deficit_3_area <= 0")
+        raise ValueError("Rule 3 coverage contains areas with deficit_3_area <= 0")
 
     if not (coverage_30["required_canopy_30"] > 0).all():
-        raise ValueError("Esistono aree nel coverage 30 con required_canopy_30 <= 0")
+        raise ValueError("Rule 30 coverage contains areas with required_canopy_30 <= 0")
 
     if not (coverage_300["deficit_300_area"] > 0).all():
-        raise ValueError("Esistono aree nel coverage 300 con deficit_300_area <= 0")
+        raise ValueError("Rule 300 coverage contains areas with deficit_300_area <= 0")
 
     if coverage_3.duplicated(["cell_id", "building_id"]).any():
-        raise ValueError("Duplicati (cell_id, building_id) nel coverage 3")
+        raise ValueError("Duplicate (cell_id, building_id) pairs in Rule 3 coverage")
 
     if coverage_300.duplicated(["cell_id", "building_id"]).any():
-        raise ValueError("Duplicati (cell_id, building_id) nel coverage 300")
+        raise ValueError("Duplicate (cell_id, building_id) pairs in Rule 300 coverage")
 
     if coverage_30.duplicated(["cell_id", "codice_area_statistica"]).any():
         raise ValueError(
-            "Duplicati (cell_id, codice_area_statistica) nel coverage 30"
+            "Duplicate (cell_id, codice_area_statistica) pairs in Rule 30 coverage"
         )
 
-    print("Controlli diagnostici coverage: OK")
+    print("Coverage validation: OK")
 
 
 # ---------------------------------------------------------------------
@@ -398,7 +382,7 @@ def validate_counterfactual_coverages(coverage_3, coverage_30, coverage_300):
 
 
 def aggregate_results(buildings, stat_areas):
-    print("Aggregazione per area statistica...")
+    print("Aggregating by statistical area...")
 
     aggregation = (
         buildings.groupby("codice_area_statistica")
@@ -507,14 +491,14 @@ def main():
 
     buildings = assign_buildings_to_statistical_areas(buildings, stat_areas)
 
-    print("Calcolo criterio 300...")
+    print("Computing Rule 300...")
     buildings["near_park"] = compute_rule_300(buildings, parks)
     buildings["meet_300"] = buildings["near_park"]
     buildings["score_300"] = buildings["meet_300"].astype(float)
 
     trees = gpd.read_file(RAW_DIR / "alberi-manutenzioni.fgb").to_crs(CRS_METRIC)
 
-    print("Calcolo criterio 3...")
+    print("Computing Rule 3...")
 
     has_3_trees_flags, meet_3_flags, n_trees, score_3 = compute_rule_3(
         buildings, trees, buildings["near_park"]
@@ -525,7 +509,7 @@ def main():
     buildings["n_trees_50m"] = n_trees
     buildings["score_3"] = score_3
 
-    # counterfactual 
+    # Counterfactual coverage.
     coverage_300 = compute_counterfactual_300(buildings, grid)
     coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
 
@@ -539,24 +523,24 @@ def main():
 
     result = aggregate_results(buildings, stat_areas)
 
-    print("\nRange score_3:", result["score_3"].min(), result["score_3"].max())
-    print("Range score_30:", result["score_30"].min(), result["score_30"].max())
-    print("Range score_300:", result["score_300"].min(), result["score_300"].max())
-    print("Range index_330300:", result["index_330300"].min(), result["index_330300"].max())
+    print("\nScore 3 range:", result["score_3"].min(), result["score_3"].max())
+    print("Score 30 range:", result["score_30"].min(), result["score_30"].max())
+    print("Score 300 range:", result["score_300"].min(), result["score_300"].max())
+    print("Index range:", result["index_330300"].min(), result["index_330300"].max())
 
     save_results(buildings, result)
 
     print(
         f"\n{'=' * 80}\n"
-        "CALCOLO 3-30-300 COMPLETATO\n"
+        "3-30-300 CALCULATION COMPLETE\n"
         f"{'=' * 80}\n"
-        f"Edifici che soddisfano il criterio 3:   {buildings['meet_3'].sum()} / {len(buildings)}\n"
-        f"Edifici che soddisfano il criterio 300: {buildings['meet_300'].sum()} / {len(buildings)}\n\n"
-        f"Aree che soddisfano il criterio 3:   {result['meet_3'].sum()} / {len(result)}\n"
-        f"Aree che soddisfano il criterio 30:  {result['meet_30'].sum()} / {len(result)}\n"
-        f"Aree che soddisfano il criterio 300: {result['meet_300'].sum()} / {len(result)}\n\n"
-        f"Edifici salvati in: {BUILDINGS_OUT}\n"
-        f"Indice salvato in:  {STAT_AREAS_OUT}"
+        f"Buildings meeting Rule 3:   {buildings['meet_3'].sum()} / {len(buildings)}\n"
+        f"Buildings meeting Rule 300: {buildings['meet_300'].sum()} / {len(buildings)}\n\n"
+        f"Areas meeting Rule 3:   {result['meet_3'].sum()} / {len(result)}\n"
+        f"Areas meeting Rule 30:  {result['meet_30'].sum()} / {len(result)}\n"
+        f"Areas meeting Rule 300: {result['meet_300'].sum()} / {len(result)}\n\n"
+        f"Buildings saved to: {BUILDINGS_OUT}\n"
+        f"Index saved to:     {STAT_AREAS_OUT}"
     )
 
 
