@@ -100,7 +100,7 @@ def solve(size, model_name, res_name):
 
     output_path = RESULTS_DIR_PATH.joinpath(f"{res_name}.geojson")
     gdf_result.to_file(output_path, driver="GeoJSON")
-    print(f"Risultato salvato in: {output_path}")
+    print(f"Result saved in: {output_path}")
 
 
 if __name__ == "__main__":
