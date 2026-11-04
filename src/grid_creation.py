@@ -387,5 +387,10 @@ if __name__ == "__main__":
                         help="Whether to run the model on the city center or on the entire cityscape.")
     args = parser.parse_args()
     
-    streets_processing()
-    main(args.size)
+    try:
+        streets_processing()
+        main(args.size)
+    finally:
+        print("QGIS shutdown: start", flush=True)
+        qgs.exitQgis()
+        print("QGIS shutdown: complete", flush=True)
