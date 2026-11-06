@@ -1,0 +1,4 @@
+scenario,gamma_330300,model_a,model_b,selected_cells_a,selected_cells_b,common_cells,union_cells,jaccard_percent,spatial_buffer_m,spatial_intersection_m2,spatial_union_m2,spatial_jaccard_percent
+gamma_0,0.0,STD,Counterfactual,100,100,100,100,100.0,100.0,4867062.007867731,4867062.007867731,100.0
+gamma_0,0.0,STD,MaxCoverage,100,100,100,100,100.0,100.0,4867062.007867731,4867062.007867731,100.0
+gamma_0,0.0,Counterfactual,MaxCoverage,100,100,100,100,100.0,100.0,4867062.007867731,4867062.007867731,100.0

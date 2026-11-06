@@ -1,0 +1,4 @@
+scenario,model_a,model_b,selected_cells_a,selected_cells_b,common_cells,union_cells,jaccard_percent,spatial_buffer_m,spatial_intersection_m2,spatial_union_m2,spatial_jaccard_percent
+tree_density_medium,STD,Counterfactual,100,100,81,119,68.0672268907563,100.0,4043234.329662538,5431798.060268337,74.4363889231699
+tree_density_medium,STD,MaxCoverage,100,100,97,103,94.1747572815534,100.0,4794785.276127209,5030575.3244452495,95.31286119159657
+tree_density_medium,Counterfactual,MaxCoverage,100,100,80,120,66.66666666666667,100.0,4000777.4649850256,5565491.509744538,71.88542930988436

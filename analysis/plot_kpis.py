@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+RESULTS_DIR = ROOT / "analysis" / "results"
 
 SCENARIOS = (
     "default",
@@ -703,8 +704,8 @@ def plot_gamma_sensitivity(output_dir):
     records = []
 
     for scenario in scenarios:
-        kpi_path = ROOT / "analysis" / f"kpi_comparison_{scenario}.csv"
-        jaccard_path = ROOT / "analysis" / f"jaccard_comparison_{scenario}.csv"
+        kpi_path = RESULTS_DIR / f"kpi_comparison_{scenario}.csv"
+        jaccard_path = RESULTS_DIR / f"jaccard_comparison_{scenario}.csv"
 
         kpis = pd.read_csv(kpi_path)
         jaccard = pd.read_csv(jaccard_path)
@@ -886,7 +887,7 @@ def plot_density_sensitivity(output_dir):
     frames = []
 
     for scenario in scenarios:
-        path = ROOT / "analysis" / f"kpi_comparison_{scenario}.csv"
+        path = RESULTS_DIR / f"kpi_comparison_{scenario}.csv"
 
         data = pd.read_csv(path)
         data["scenario"] = scenario
@@ -1039,7 +1040,7 @@ def main():
 
     suffix = "" if args.scenario == "default" else f"_{args.scenario}"
 
-    csv_path = ROOT / "analysis" / f"kpi_comparison{suffix}.csv"
+    csv_path = RESULTS_DIR / f"kpi_comparison{suffix}.csv"
 
     output_dir = ROOT / "analysis" / "plots"
 
@@ -1063,14 +1064,10 @@ def main():
         args.scenario,
     )
 
-    jaccard_csv = (
-        ROOT
-        / "analysis"
-        / (
-            "jaccard_comparison.csv"
-            if args.scenario == "default"
-            else f"jaccard_comparison_{args.scenario}.csv"
-        )
+    jaccard_csv = RESULTS_DIR / (
+        "jaccard_comparison.csv"
+        if args.scenario == "default"
+        else f"jaccard_comparison_{args.scenario}.csv"
     )
 
     plot_jaccard_heatmap(

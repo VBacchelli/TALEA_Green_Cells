@@ -636,7 +636,7 @@ print(comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
 
 output_suffix = "" if args.scenario == "default" else f"_{args.scenario}"
-output = ROOT / f"analysis/kpi_comparison{output_suffix}.csv"
+output = ROOT / "analysis" / "results" / f"kpi_comparison{output_suffix}.csv"
 output.parent.mkdir(parents=True, exist_ok=True)
 comparison.to_csv(output, index=False)
 print(f"\nComparison saved to: {output}")
@@ -693,6 +693,6 @@ if not jaccard_comparison.empty:
     print("\nExact-cell and spatial Jaccard (polygon buffer):")
     print(jaccard_comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
-jaccard_output = ROOT / f"analysis/jaccard_comparison{output_suffix}.csv"
+jaccard_output = ROOT / "analysis" / "results" / f"jaccard_comparison{output_suffix}.csv"
 jaccard_comparison.to_csv(jaccard_output, index=False)
 print(f"Jaccard comparison saved to: {jaccard_output}")
