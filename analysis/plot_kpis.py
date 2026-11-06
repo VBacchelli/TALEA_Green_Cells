@@ -119,7 +119,7 @@ def plot_tradeoff(csv_path: Path, output_dir: Path, scenario: str) -> tuple[Path
     ax.set_ylabel("Change in composite 3-30-300 KPI (percentage points)", fontsize=11)
     ax.text(
         0.0, -0.15,
-        f"Scenario: {scenario}   |   Composite KPI = mean(P3, P30, P300)   |   STD is the reference",
+        f"Scenario: {scenario}   |   Composite KPI = mean(P3, P30, P300)   |   STD baseline = {std_kpi:.3f}%",
         transform=ax.transAxes, fontsize=9, color="#596575",
     )
     for spine in ("top", "right"):
