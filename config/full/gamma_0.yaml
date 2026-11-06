@@ -1,5 +1,5 @@
 # Gamma=0 control: disable 3-30-300 contribution in the objective.
-# Tree/canopy densities follow tree_density_medium.yaml; default.yaml is unchanged.
+# Tree/canopy densities follow tree_density_medium.yaml; default.yaml uses the same medium baseline.
 
 std_330300:
   size: full

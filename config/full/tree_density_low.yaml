@@ -1,5 +1,5 @@
 # Experimental sensitivity assumptions, not empirically validated estimates.
-# Street and yard share densities; default.yaml remains the historical baseline.
+# Street and yard share densities; default.yaml uses the same medium baseline.
 
 std_330300:
   size: full

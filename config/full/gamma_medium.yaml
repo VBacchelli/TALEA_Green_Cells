@@ -1,5 +1,5 @@
 # Gamma sensitivity (one parameter at a time).
-# Tree/canopy densities follow tree_density_medium.yaml; default.yaml is unchanged.
+# Tree/canopy densities follow tree_density_medium.yaml; default.yaml uses the same medium baseline.
 
 std_330300:
   size: full
