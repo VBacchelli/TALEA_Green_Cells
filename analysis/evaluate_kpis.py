@@ -20,6 +20,209 @@ models = {
     "MaxCoverage": "std_330300_maxcoverage",
 }
 
+
+def read_dzn_array(dzn, name):
+    prefix = f"{name} = ["
+    if prefix not in dzn:
+        raise ValueError(f"Missing MiniZinc parameter: {name}")
+    values = dzn.split(prefix, 1)[1].split("];", 1)[0]
+    return np.fromstring(values, sep=",")
+
+
+def load_scenario_profiles(
+    scenario_config, scenario, density_fields, scenario_path, parser
+):
+    scenario_profiles = {}
+    for model in ("std_330300", "std_330300_maxcoverage"):
+        profile = (
+            scenario_config.get(model)
+            if isinstance(scenario_config, dict)
+            else None
+        )
+        if not isinstance(profile, dict):
+            parser.error(f"Missing {model} profile in {scenario_path}")
+
+        if profile.get("res_name") != scenario or profile.get("size") != "full":
+            parser.error(
+                f"{model} profile: res_name must be '{scenario}' "
+                "and size must be 'full'."
+            )
+        if profile.get("max_cells") != 100:
+            parser.error(
+                f"{model} profile: this evaluation uses the 100-cell STD baseline; "
+                "a max_cells sweep requires a dedicated evaluation."
+            )
+
+        values = {}
+        for field in density_fields:
+            try:
+                value = float(profile[field])
+            except (KeyError, TypeError, ValueError):
+                parser.error(f"Missing or non-numeric {field} value for {model}")
+            if not (np.isfinite(value) and value >= 0):
+                parser.error(f"Invalid {field} value for {model}: {value}")
+            values[field] = value
+        scenario_profiles[model] = values
+
+    if scenario_profiles["std_330300"] != scenario_profiles["std_330300_maxcoverage"]:
+        parser.error("The two 3-30-300 models must use the same densities.")
+
+    scenario_gamma = None
+    if scenario.startswith("gamma_"):
+        gamma_values = []
+        for model in ("std_330300", "std_330300_maxcoverage"):
+            try:
+                gamma = float(scenario_config[model]["gamma_330300"])
+            except (KeyError, TypeError, ValueError):
+                parser.error(f"Missing or non-numeric gamma_330300 for {model}")
+            if not np.isfinite(gamma):
+                parser.error(f"Non-finite gamma_330300 for {model}")
+            gamma_values.append(gamma)
+        if not np.isclose(gamma_values[0], gamma_values[1], rtol=0, atol=1e-12):
+            parser.error("The two models must use the same gamma_330300.")
+        scenario_gamma = gamma_values[0]
+
+    return scenario_profiles, scenario_gamma
+
+
+def load_solutions(root, models, result_names, scenario, scenario_path):
+    solutions = {}
+    for name, folder in models.items():
+        result_name = result_names[name]
+        geojson_path = root / "results" / "full" / folder / f"{result_name}.geojson"
+        if not geojson_path.is_file():
+            if scenario != "default":
+                raise FileNotFoundError(
+                    f"Missing optimized result for {name} in scenario "
+                    f"'{scenario}': {geojson_path}. "
+                    f"Eseguire prima run_model --config {scenario_path} --model {folder} "
+                    "(STD always uses default)."
+                )
+            print(f"WARNING: result missing for {name}: {geojson_path}")
+            continue
+        solutions[name] = gpd.read_file(geojson_path)
+
+    if "STD" not in solutions:
+        raise FileNotFoundError("STD default.geojson is required for comparison")
+    return solutions
+
+
+def prepare_solution(solution, name, spatial_buffer_m):
+    required = {"id", "street_cells", "yard_cells"}
+    if not required.issubset(solution.columns):
+        raise ValueError(
+            f"Missing columns in {name} solution: {required - set(solution.columns)}"
+        )
+    if solution["id"].isna().any() or solution["id"].duplicated().any():
+        raise ValueError(f"Cell IDs are missing or duplicated in {name} solution")
+    if solution[["street_cells", "yard_cells"]].isna().any().any():
+        raise ValueError(f"Missing allocations in {name} solution")
+    if (solution[["street_cells", "yard_cells"]] < 0).any().any():
+        raise ValueError(f"Negative allocations in {name} solution")
+
+    selected_allocations = solution.loc[
+        (solution["street_cells"] + solution["yard_cells"]) > 0,
+        ["id", "street_cells", "yard_cells"],
+    ].copy()
+
+    if solution.crs is None:
+        raise ValueError(f"Missing coordinate system in {name} solution")
+    selected_geometries = solution.loc[selected_allocations.index, ["geometry"]]
+    if (
+        selected_geometries.geometry.isna().any()
+        or selected_geometries.geometry.is_empty.any()
+    ):
+        raise ValueError(f"Selected geometries are missing or empty for {name}")
+    if not selected_geometries.geometry.is_valid.all():
+        raise ValueError(f"Selected geometries are invalid for {name}")
+
+    buffered_area = (
+        selected_geometries.to_crs("EPSG:32632")
+        .geometry.buffer(spatial_buffer_m)
+        .union_all()
+        if not selected_geometries.empty
+        else None
+    )
+    return selected_allocations, buffered_area
+
+
+def validate_coverage_data(coverage_3, coverage_300, coverage_30, deficit_3,
+                           deficit_30, uncovered_300):
+    required_30_columns = {
+        "cell_id",
+        "codice_area_statistica",
+        "cell_share",
+        "required_canopy_30",
+    }
+    if not required_30_columns.issubset(coverage_30.columns):
+        raise ValueError("Missing fields in Rule 30 CSV")
+    if coverage_30[list(required_30_columns)].isna().any().any():
+        raise ValueError("Missing values in Rule 30 relationships")
+    if coverage_30.duplicated(["cell_id", "codice_area_statistica"]).any():
+        raise ValueError("Duplicate cell-area relationships in Rule 30 CSV")
+    if not coverage_30["cell_share"].between(0, 1).all():
+        raise ValueError("Invalid cell_share values")
+
+    expected_deficit_30 = coverage_30["codice_area_statistica"].map(deficit_30)
+    if (
+        expected_deficit_30.isna().any()
+        or not np.isclose(
+            coverage_30["required_canopy_30"],
+            expected_deficit_30,
+            rtol=1e-9,
+            atol=1e-6,
+        ).all()
+    ):
+        raise ValueError("Rule 30 relationships do not match initial deficits")
+    if not {"cell_id", "building_id", "required_trees"}.issubset(coverage_3.columns):
+        raise ValueError("Missing cell_id/building_id/required_trees fields in Rule 3 CSV")
+    if not {"cell_id", "building_id"}.issubset(coverage_300.columns):
+        raise ValueError("Missing cell_id/building_id fields in Rule 300 CSV")
+    if (
+        coverage_3[["cell_id", "building_id", "required_trees"]].isna().any().any()
+        or coverage_300[["cell_id", "building_id"]].isna().any().any()
+    ):
+        raise ValueError("Missing IDs or deficits in coverage CSVs")
+    if coverage_3.duplicated(["cell_id", "building_id"]).any():
+        raise ValueError("Duplicate cell-building relationships in cell_3_coverage.csv")
+    if not set(coverage_300["building_id"]).issubset(uncovered_300):
+        raise ValueError("Rule 300 relationships do not match initially uncovered buildings")
+
+    expected_deficit = coverage_3["building_id"].map(deficit_3)
+    if (
+        expected_deficit.isna().any()
+        or not coverage_3["required_trees"].eq(expected_deficit).all()
+    ):
+        raise ValueError("Rule 3 relationships do not match GeoPackage deficits")
+
+
+def calculate_original_utility(solution, base, alpha_yard, top_k,
+                               max_street, max_yard, max_areas, max_green,
+                               max_trees, name):
+    allocations = solution.loc[
+        (solution["street_cells"] + solution["yard_cells"]) > 0,
+        ["id", "street_cells", "yard_cells"]
+    ]
+    cell_data = base.reindex(allocations["id"].to_numpy())
+    if cell_data.isna().any().any():
+        raise ValueError(f"Missing cells in original data: {name}")
+
+    benefit = (
+        alpha_yard * allocations["yard_cells"].to_numpy() / max_yard
+        + allocations["street_cells"].to_numpy() / max_street
+    )
+    penalty = (
+        cell_data["num_areas"].to_numpy() / max_areas
+        + cell_data["green_space"].to_numpy() / max_green
+        + cell_data["num_trees"].to_numpy() / max_trees
+        + 1e-8
+    )
+    utility = (
+        cell_data["macro_factors"].to_numpy() * benefit / penalty
+    ).sum() / top_k
+    return float(utility)
+
+
 parser = argparse.ArgumentParser(
     description="Compare post-hoc 3-30-300 KPIs, TALEA utility, and Jaccard"
 )
@@ -90,53 +293,11 @@ if not scenario_path.is_file():
 with scenario_path.open(encoding="utf-8") as config_file:
     scenario_config = yaml.safe_load(config_file)
 
-scenario_profiles = {}
-for model in ("std_330300", "std_330300_maxcoverage"):
-    profile = scenario_config.get(model) if isinstance(scenario_config, dict) else None
-    if not isinstance(profile, dict):
-        parser.error(f"Missing {model} profile in {scenario_path}")
-
-    if profile.get("res_name") != args.scenario or profile.get("size") != "full":
-        parser.error(
-            f"{model} profile: res_name must be '{args.scenario}' "
-            "and size must be 'full'."
-        )
-    if profile.get("max_cells") != 100:
-        parser.error(
-            f"{model} profile: this evaluation uses the 100-cell STD baseline; "
-            "a max_cells sweep requires a dedicated evaluation."
-        )
-
-    values = {}
-    for field in density_fields:
-        try:
-            value = float(profile[field])
-        except (KeyError, TypeError, ValueError):
-            parser.error(f"Missing or non-numeric {field} value for {model}")
-        if not (np.isfinite(value) and value >= 0):
-            parser.error(f"Invalid {field} value for {model}: {value}")
-        values[field] = value
-    scenario_profiles[model] = values
-
-if scenario_profiles["std_330300"] != scenario_profiles["std_330300_maxcoverage"]:
-    parser.error("The two 3-30-300 models must use the same densities.")
-
 # The gamma sweep keeps physical densities fixed; the actual weight is
 # recorded in the CSV files for reproducible comparisons.
-scenario_gamma = None
-if args.scenario.startswith("gamma_"):
-    gamma_values = []
-    for model in ("std_330300", "std_330300_maxcoverage"):
-        try:
-            gamma = float(scenario_config[model]["gamma_330300"])
-        except (KeyError, TypeError, ValueError):
-            parser.error(f"Missing or non-numeric gamma_330300 for {model}")
-        if not np.isfinite(gamma):
-            parser.error(f"Non-finite gamma_330300 for {model}")
-        gamma_values.append(gamma)
-    if not np.isclose(gamma_values[0], gamma_values[1], rtol=0, atol=1e-12):
-        parser.error("The two models must use the same gamma_330300.")
-    scenario_gamma = gamma_values[0]
+scenario_profiles, scenario_gamma = load_scenario_profiles(
+    scenario_config, args.scenario, density_fields, scenario_path, parser
+)
 
 density_values = scenario_profiles["std_330300"].copy()
 density_values.update({key: val for key, val in overrides.items() if val is not None})
@@ -159,24 +320,9 @@ result_names = {
     "Counterfactual": args.scenario,
     "MaxCoverage": args.scenario,
 }
-solutions = {}
-for name, folder in models.items():
-    result_name = result_names[name]
-    geojson_path = ROOT / "results" / "full" / folder / f"{result_name}.geojson"
-    if not geojson_path.is_file():
-        if args.scenario != "default":
-            raise FileNotFoundError(
-                f"Missing optimized result for {name} in scenario "
-                f"'{args.scenario}': {geojson_path}. "
-                f"Eseguire prima run_model --config {scenario_path} --model {folder} "
-                "(STD always uses default)."
-            )
-        print(f"WARNING: result missing for {name}: {geojson_path}")
-        continue
-    solutions[name] = gpd.read_file(geojson_path)
-
-if "STD" not in solutions:
-    raise FileNotFoundError("STD default.geojson is required for comparison")
+solutions = load_solutions(
+    ROOT, models, result_names, args.scenario, scenario_path
+)
 
 # Original utility reported by the STD solver.
 std_solution = solutions["STD"]
@@ -191,13 +337,6 @@ std_original_utility = std_solution["utility"].sum() / 100
 
 dzn_path = ROOT / "src/Minizinc/instances/std_instance.dzn"
 dzn = dzn_path.read_text(encoding="utf-8")
-
-def read_dzn_array(name):
-    prefix = f"{name} = ["
-    if prefix not in dzn:
-        raise ValueError(f"Missing MiniZinc parameter: {name}")
-    values = dzn.split(prefix, 1)[1].split("];", 1)[0]
-    return np.fromstring(values, sep=",")
 
 alpha_yard = float(dzn.split("alpha_yard = ", 1)[1].split(";", 1)[0])
 top_k = int(dzn.split("top_k = ", 1)[1].split(";", 1)[0])
@@ -216,7 +355,7 @@ if grid_ids.isna().any() or grid_ids.duplicated().any():
     raise ValueError("Invalid grid IDs")
 
 base = pd.DataFrame(
-    {field: read_dzn_array(field) for field in fields},
+    {field: read_dzn_array(dzn, field) for field in fields},
     index=grid_ids.to_numpy()
 )
 
@@ -321,105 +460,22 @@ coverage_3 = pd.read_csv(ROOT / "dataset/processed_data/330300/cell_3_coverage.c
 coverage_300 = pd.read_csv(ROOT / "dataset/processed_data/330300/cell_300_coverage.csv")
 coverage_30 = pd.read_csv(ROOT / "dataset/processed_data/330300/cell_30_coverage.csv")
 
-required_30_columns = {
-    "cell_id",
-    "codice_area_statistica",
-    "cell_share",
-    "required_canopy_30",
-}
-
-if not required_30_columns.issubset(coverage_30.columns):
-    raise ValueError("Missing fields in Rule 30 CSV")
-
-if coverage_30[list(required_30_columns)].isna().any().any():
-    raise ValueError("Missing values in Rule 30 relationships")
-
-if coverage_30.duplicated(["cell_id", "codice_area_statistica"]).any():
-    raise ValueError("Duplicate cell-area relationships in Rule 30 CSV")
-
-if not coverage_30["cell_share"].between(0, 1).all():
-    raise ValueError("Invalid cell_share values")
-
-# Each relationship must reference an initially non-compliant area
-# and contain its correct initial deficit.
-expected_deficit_30 = coverage_30["codice_area_statistica"].map(deficit_30)
-
-if (
-    expected_deficit_30.isna().any()
-    or not np.isclose(
-        coverage_30["required_canopy_30"], expected_deficit_30, rtol=1e-9, atol=1e-6
-    ).all()
-):
-    raise ValueError("Rule 30 relationships do not match initial deficits")
-if not {"cell_id", "building_id", "required_trees"}.issubset(coverage_3.columns):
-    raise ValueError("Missing cell_id/building_id/required_trees fields in Rule 3 CSV")
-if not {"cell_id", "building_id"}.issubset(coverage_300.columns):
-    raise ValueError("Missing cell_id/building_id fields in Rule 300 CSV")
-if (
-    coverage_3[["cell_id", "building_id", "required_trees"]].isna().any().any()
-    or coverage_300[["cell_id", "building_id"]].isna().any().any()
-):
-    raise ValueError("Missing IDs or deficits in coverage CSVs")
-if coverage_3.duplicated(["cell_id", "building_id"]).any():
-    raise ValueError("Duplicate cell-building relationships in cell_3_coverage.csv")
-if not set(coverage_300["building_id"]).issubset(uncovered_300):
-    raise ValueError("Rule 300 relationships do not match initially uncovered buildings")
-
-# Rule 3 relationships must reference NON-compliant buildings and contain the
-# same individual deficit from the GeoPackage, before evaluating the models.
-expected_deficit = coverage_3["building_id"].map(deficit_3)
-if (
-    expected_deficit.isna().any()
-    or not coverage_3["required_trees"].eq(expected_deficit).all()
-):
-    raise ValueError("Rule 3 relationships do not match GeoPackage deficits")
+validate_coverage_data(
+    coverage_3, coverage_300, coverage_30, deficit_3, deficit_30, uncovered_300
+)
 
 rows = []
 selected_ids_by_model = {}
 buffered_areas_by_model = {}
 for name, solution in solutions.items():
-    required = {"id", "street_cells", "yard_cells"}
-    if not required.issubset(solution.columns):
-        raise ValueError(
-            f"Missing columns in {name} solution: {required - set(solution.columns)}"
-        )
-    if solution["id"].isna().any() or solution["id"].duplicated().any():
-        raise ValueError(f"Cell IDs are missing or duplicated in {name} solution")
-    if solution[["street_cells", "yard_cells"]].isna().any().any():
-        raise ValueError(f"Missing allocations in {name} solution")
-    if (solution[["street_cells", "yard_cells"]] < 0).any().any():
-        raise ValueError(f"Negative allocations in {name} solution")
-
-    # Active cell = strictly positive converted surface.
-    selected_allocations = solution.loc[
-        (solution["street_cells"] + solution["yard_cells"]) > 0,
-        ["id", "street_cells", "yard_cells"],
-    ].copy()
+    selected_allocations, buffered_area = prepare_solution(
+        solution, name, SPATIAL_BUFFER_M
+    )
     selected = selected_allocations["id"]
     # Same grid for every model: IDs identify selected positions
     # without duplicate counts.
     selected_ids_by_model[name] = set(selected)
-
-    # Spatial Jaccard: influence area is the union of converted cell polygons,
-    # each extended by the configurable buffer. Build the buffer in a metric
-    # CRS, never in degrees or EPSG:3857.
-    if solution.crs is None:
-        raise ValueError(f"Missing coordinate system in {name} solution")
-    selected_geometries = solution.loc[selected_allocations.index, ["geometry"]]
-    if (
-        selected_geometries.geometry.isna().any()
-        or selected_geometries.geometry.is_empty.any()
-    ):
-        raise ValueError(f"Selected geometries are missing or empty for {name}")
-    if not selected_geometries.geometry.is_valid.all():
-        raise ValueError(f"Selected geometries are invalid for {name}")
-    buffered_areas_by_model[name] = (
-        selected_geometries.to_crs("EPSG:32632")
-        .geometry.buffer(SPATIAL_BUFFER_M)
-        .union_all()
-        if not selected_geometries.empty
-        else None
-    )
+    buffered_areas_by_model[name] = buffered_area
 
     # KPI 300 unchanged: a building reached by multiple cells counts once.
     covered_300 = int(
@@ -550,35 +606,10 @@ comparison["KPI_330300_percent"] = comparison[
 original_utility_by_model = {}
 
 for name, solution in solutions.items():
-
-    allocations = solution.loc[
-        (solution["street_cells"] + solution["yard_cells"]) > 0,
-        ["id", "street_cells", "yard_cells"]
-    ]
-
-    cell_data = base.reindex(allocations["id"].to_numpy())
-
-    if cell_data.isna().any().any():
-        raise ValueError(f"Missing cells in original data: {name}")
-
-    benefit = (
-        alpha_yard * allocations["yard_cells"].to_numpy() / max_yard
-        + allocations["street_cells"].to_numpy() / max_street
+    original_utility_by_model[name] = calculate_original_utility(
+        solution, base, alpha_yard, top_k, max_street, max_yard,
+        max_areas, max_green, max_trees, name
     )
-
-    penalty = (
-        cell_data["num_areas"].to_numpy() / max_areas
-        + cell_data["green_space"].to_numpy() / max_green
-        + cell_data["num_trees"].to_numpy() / max_trees
-        + 1e-8
-    )
-
-    utility = (
-        cell_data["macro_factors"].to_numpy()
-        * benefit / penalty
-    ).sum() / top_k
-
-    original_utility_by_model[name] = float(utility)
 
 # Verify that the STD calculation matches the solver.
 if not np.isclose(
