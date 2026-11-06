@@ -362,7 +362,6 @@ def plot_kpi_components(data, output_dir, scenario):
     )
 
 
-
 def plot_kpi_relative_changes(data, output_dir, scenario):
     """Relative percentage changes from STD for each 3-30-300 KPI."""
 
@@ -402,9 +401,7 @@ def plot_kpi_relative_changes(data, output_dir, scenario):
 
             model_value = float(model_data[column])
 
-            change = 100 * (
-                model_value - std_value
-            ) / std_value
+            change = 100 * (model_value - std_value) / std_value
 
             values.append(change)
 
@@ -421,16 +418,10 @@ def plot_kpi_relative_changes(data, output_dir, scenario):
         x_max + 0.18 * x_span,
     )
 
-    for index, model in enumerate(
-        ("Counterfactual", "MaxCoverage")
-    ):
+    for index, model in enumerate(("Counterfactual", "MaxCoverage")):
         values = changes[model]
 
-        positions = y + (
-            -bar_height / 2
-            if index == 0
-            else bar_height / 2
-        )
+        positions = y + (-bar_height / 2 if index == 0 else bar_height / 2)
 
         ax.barh(
             positions,
@@ -526,14 +517,12 @@ def plot_kpi_relative_changes(data, output_dir, scenario):
     )
 
 
-
 def plot_jaccard_heatmap(csv_path, output_dir, scenario):
     """Compare exact and spatial Jaccard with a shared color scale."""
 
     if not csv_path.is_file():
         raise FileNotFoundError(
-            f"Missing Jaccard comparison: {csv_path}. "
-            "Run evaluate_kpis.py first."
+            f"Missing Jaccard comparison: {csv_path}. " "Run evaluate_kpis.py first."
         )
 
     data = pd.read_csv(csv_path)
@@ -552,9 +541,7 @@ def plot_jaccard_heatmap(csv_path, output_dir, scenario):
 
     models = list(MODELS)
     expected_pairs = {
-        frozenset((a, b))
-        for i, a in enumerate(models)
-        for b in models[i + 1:]
+        frozenset((a, b)) for i, a in enumerate(models) for b in models[i + 1 :]
     }
 
     seen_pairs = set()
@@ -565,9 +552,7 @@ def plot_jaccard_heatmap(csv_path, output_dir, scenario):
         pair = frozenset((row.model_a, row.model_b))
 
         if pair not in expected_pairs or pair in seen_pairs:
-            raise ValueError(
-                f"Invalid or duplicate Jaccard pair: {pair}"
-            )
+            raise ValueError(f"Invalid or duplicate Jaccard pair: {pair}")
 
         seen_pairs.add(pair)
 
@@ -604,7 +589,8 @@ def plot_jaccard_heatmap(csv_path, output_dir, scenario):
     buffer_m = float(buffer_values.iloc[0])
 
     fig, axes = plt.subplots(
-        1, 2,
+        1,
+        2,
         figsize=(12.5, 5.8),
         constrained_layout=True,
     )
@@ -666,11 +652,7 @@ def plot_jaccard_heatmap(csv_path, output_dir, scenario):
                     va="center",
                     fontsize=10,
                     fontweight="semibold",
-                    color=(
-                        "white"
-                        if value >= 50
-                        else "#253344"
-                    ),
+                    color=("white" if value >= 50 else "#253344"),
                 )
 
         for spine in ax.spines.values():
@@ -705,6 +687,340 @@ def plot_jaccard_heatmap(csv_path, output_dir, scenario):
         fig,
         output_dir,
         f"jaccard_heatmap_{scenario}",
+    )
+
+
+def plot_gamma_sensitivity(output_dir):
+    """Gamma sensitivity: KPI, utility and selected-cell changes."""
+
+    scenarios = [
+        "gamma_0",
+        "gamma_low",
+        "gamma_medium",
+        "gamma_high",
+    ]
+
+    records = []
+
+    for scenario in scenarios:
+        kpi_path = ROOT / "analysis" / f"kpi_comparison_{scenario}.csv"
+        jaccard_path = ROOT / "analysis" / f"jaccard_comparison_{scenario}.csv"
+
+        kpis = pd.read_csv(kpi_path)
+        jaccard = pd.read_csv(jaccard_path)
+
+        baseline = kpis.loc[kpis["model"] == "STD"]
+
+        if len(baseline) != 1:
+            raise ValueError(f"Invalid STD baseline: {scenario}")
+
+        std_kpi = float(baseline["KPI_330300_percent"].iloc[0])
+
+        for model in ("Counterfactual", "MaxCoverage"):
+            result = kpis.loc[kpis["model"] == model]
+
+            if len(result) != 1:
+                raise ValueError(f"Missing or duplicate model {model}: {scenario}")
+
+            result = result.iloc[0]
+
+            pair = jaccard.loc[
+                ((jaccard["model_a"] == "STD") & (jaccard["model_b"] == model))
+                | ((jaccard["model_b"] == "STD") & (jaccard["model_a"] == model))
+            ]
+
+            if len(pair) != 1:
+                raise ValueError(f"Invalid Jaccard comparison: {scenario}, {model}")
+
+            pair = pair.iloc[0]
+
+            selected_cells = (
+                int(pair["selected_cells_a"])
+                if pair["model_a"] == model
+                else int(pair["selected_cells_b"])
+            )
+
+            changed_cells = selected_cells - int(pair["common_cells"])
+
+            records.append(
+                {
+                    "model": model,
+                    "gamma": float(result["gamma_330300"]),
+                    "delta_kpi": (float(result["KPI_330300_percent"]) - std_kpi),
+                    "delta_utility": float(result["TALEA_utility_change_percent"]),
+                    "changed_cells": changed_cells,
+                }
+            )
+
+    data = pd.DataFrame(records)
+
+    if not np.isfinite(
+        data[["gamma", "delta_kpi", "delta_utility", "changed_cells"]].to_numpy(
+            dtype=float
+        )
+    ).all():
+        raise ValueError("Non-finite gamma sensitivity results")
+
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=(14, 5.5),
+        constrained_layout=True,
+    )
+
+    panels = [
+        (
+            "delta_kpi",
+            "Composite KPI improvement",
+            "Change vs. STD (percentage points)",
+        ),
+        (
+            "delta_utility",
+            "Original TALEA utility",
+            "Change vs. STD (%)",
+        ),
+        (
+            "changed_cells",
+            "Changes in placement",
+            "Cells replaced vs. STD (out of 100)",
+        ),
+    ]
+
+    for model in ("Counterfactual", "MaxCoverage"):
+        subset = data.loc[data["model"] == model].sort_values("gamma")
+
+        for ax, (column, _, _) in zip(axes, panels):
+            ax.plot(
+                subset["gamma"],
+                subset[column],
+                marker="o",
+                markersize=7,
+                linewidth=2.2,
+                color=COLORS[model],
+                label=model,
+            )
+
+    gamma_values = sorted(data["gamma"].unique())
+
+    for ax, (column, title, ylabel) in zip(axes, panels):
+        ax.set_title(
+            title,
+            fontsize=12,
+            fontweight="semibold",
+            pad=12,
+        )
+
+        ax.set_xlabel("3-30-300 weight (γ)", fontsize=10)
+        ax.set_ylabel(ylabel, fontsize=9)
+
+        ax.set_xticks(gamma_values)
+        ax.set_xticklabels([f"{value:g}" for value in gamma_values])
+
+        ax.axhline(
+            0,
+            color="#8F9BA7",
+            linestyle="--",
+            linewidth=1,
+        )
+
+        ax.grid(
+            color="#E8ECEF",
+            linewidth=0.8,
+        )
+
+        ax.set_axisbelow(True)
+
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+
+    axes[2].set_ylim(bottom=0)
+
+    fig.suptitle(
+        "Sensitivity to the 3-30-300 objective weight",
+        fontsize=15,
+        fontweight="semibold",
+        y=1.10,
+    )
+
+    handles, labels = axes[0].get_legend_handles_labels()
+
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.055),
+        ncol=2,
+        frameon=False,
+        fontsize=10,
+    )
+
+    fig.text(
+        0.5,
+        -0.045,
+        (
+            "Tree density = 0.01 trees/m²  |  "
+            "Canopy density = 0.20 m²/m²  |  "
+            "100 selected cells per solution"
+        ),
+        ha="center",
+        fontsize=9,
+        color="#596575",
+    )
+
+    save_figure(
+        fig,
+        output_dir,
+        "gamma_sensitivity",
+    )
+
+
+def plot_density_sensitivity(output_dir):
+    """Sensitivity to jointly varied tree and canopy densities."""
+
+    scenarios = [
+        "tree_density_low",
+        "tree_density_medium",
+        "tree_density_high",
+    ]
+
+    frames = []
+
+    for scenario in scenarios:
+        path = ROOT / "analysis" / f"kpi_comparison_{scenario}.csv"
+
+        data = pd.read_csv(path)
+        data["scenario"] = scenario
+
+        frames.append(data)
+
+    data = pd.concat(frames, ignore_index=True)
+
+    models = ("STD", "Counterfactual", "MaxCoverage")
+
+    metrics = [
+        (
+            "P3_percent",
+            "P3 — Tree coverage",
+            "tree_density_street",
+            "Tree density (trees/m²)",
+        ),
+        (
+            "P30_percent",
+            "P30 — Canopy coverage",
+            "canopy_density_street",
+            "Canopy density (m²/m²)",
+        ),
+        (
+            "KPI_330300_percent",
+            "Composite 3-30-300 KPI",
+            None,
+            "Density scenario",
+        ),
+    ]
+
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=(14, 5.5),
+        constrained_layout=True,
+    )
+
+    fig.patch.set_facecolor("white")
+
+    for ax, (column, title, density_column, xlabel) in zip(axes, metrics):
+
+        for model in models:
+            subset = (
+                data.loc[data["model"] == model].set_index("scenario").loc[scenarios]
+            )
+
+            values = subset[column].to_numpy(dtype=float)
+
+            if density_column is None:
+                x = np.arange(len(scenarios))
+            else:
+                x = subset[density_column].to_numpy(dtype=float)
+
+            ax.plot(
+                x,
+                values,
+                marker="o",
+                markersize=7,
+                linewidth=2.2,
+                color=COLORS[model],
+                label=model,
+            )
+
+        ax.set_title(
+            title,
+            fontsize=12,
+            fontweight="semibold",
+            pad=12,
+        )
+
+        ax.set_xlabel(xlabel, fontsize=10)
+        ax.set_ylabel("KPI (%)", fontsize=10)
+
+        if density_column is None:
+            ax.set_xticks([0, 1, 2])
+            ax.set_xticklabels(["Low", "Medium", "High"])
+        else:
+            values = sorted(data[density_column].unique())
+            ax.set_xticks(values)
+            ax.set_xticklabels([f"{v:g}" for v in values])
+
+        # Absolute KPI values: vertical axes start at zero.
+        ax.set_ylim(bottom=0)
+
+        ax.grid(
+            color="#E8ECEF",
+            linewidth=0.8,
+        )
+        ax.set_axisbelow(True)
+
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+
+    fig.suptitle(
+        "Sensitivity to tree and canopy density assumptions",
+        fontsize=15,
+        fontweight="semibold",
+        y=1.13,
+    )
+
+    handles, labels = axes[0].get_legend_handles_labels()
+
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.06),
+        ncol=3,
+        frameon=False,
+        fontsize=10,
+    )
+
+    fig.text(
+        0.5,
+        -0.06,
+        (
+            "Low: 0.005 trees/m², 0.10 canopy   |   "
+            "Medium: 0.010 trees/m², 0.20 canopy   |   "
+            "High: 0.015 trees/m², 0.30 canopy\n"
+            "Tree and canopy densities vary jointly. "
+            "P300 and selected cell locations remain unchanged across scenarios."
+        ),
+        ha="center",
+        va="top",
+        fontsize=9,
+        linespacing=1.6,
+        color="#596575",
+    )
+
+    save_figure(
+        fig,
+        output_dir,
+        "density_sensitivity",
     )
 
 
@@ -748,7 +1064,9 @@ def main():
     )
 
     jaccard_csv = (
-        ROOT / "analysis" / (
+        ROOT
+        / "analysis"
+        / (
             "jaccard_comparison.csv"
             if args.scenario == "default"
             else f"jaccard_comparison_{args.scenario}.csv"
@@ -760,6 +1078,10 @@ def main():
         output_dir,
         args.scenario,
     )
+
+    plot_gamma_sensitivity(output_dir)
+    plot_density_sensitivity(output_dir)
+
 
 if __name__ == "__main__":
     main()
