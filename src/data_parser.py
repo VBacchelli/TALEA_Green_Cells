@@ -417,25 +417,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--tree_density_street",
         type=float,
-        default=0.2,
+        default=0.01,
         help="Conversion factor from allocated street green surface to number of trees.",
     )
     parser.add_argument(
         "--tree_density_yard",
         type=float,
-        default=0.2,
+        default=0.01,
         help="Conversion factor from allocated yard green surface to number of trees.",
     )
     parser.add_argument(
         "--canopy_density_street",
         type=float,
-        default=0.3,
+        default=0.2,
         help="Conversion factor from allocated street green surface to canopy surface.",
     )
     parser.add_argument(
         "--canopy_density_yard",
         type=float,
-        default=0.3,
+        default=0.2,
         help="Conversion factor from allocated yard green surface to canopy surface.",
     )
 
