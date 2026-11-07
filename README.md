@@ -151,54 +151,10 @@ The *micro scale* is referred to the grid of 100x100 m cells, and is modeled dif
 
 ## 3-30-300 extension (branch `3-30-300`)
 
-This branch extends the original TALEA Green Cells optimization with the **3-30-300 urban greenness rule**. The original TALEA models and documentation above remain the baseline; the two additional models and the associated preprocessing, evaluation and sensitivity experiments are specific to this extension.
+This branch extends the original TALEA Green Cells optimization with the **3-30-300 urban greenness rule**, comparing the existing **Standard** model with two new approaches: **Counterfactual** (local 3-30-300 benefits) and **MaxCoverage** (city-wide recovery of initial greenness deficits). The extension also includes geospatial preparation, common post-hoc KPI evaluation and sensitivity experiments.
 
-The three criteria are evaluated using the following operational definitions:
-
-- **3 trees:** a residential building satisfies the criterion if at least three mapped trees lie within 50 m of its centroid **or** if it is within 300 m of an existing park/garden (the additional convention used by this project). New trees are estimated from the allocated green surface using configurable trees-per-square-metre coefficients.
-- **30% canopy:** a statistical area satisfies the criterion when estimated tree-canopy coverage reaches 30%. Initial coverage comes from the canopy raster; additional canopy is estimated from allocated green surface and distributed to statistical areas according to the fraction of each grid cell that overlaps them.
-- **300 m to green space:** a residential building satisfies the criterion if it lies within 300 m of an existing park/garden. In the intervention scenarios, a selected Green Cell is treated as a potential new accessible green space, so buildings within 300 m of that cell are counted as newly covered.
-
-Distances are **Euclidean** in a metric projected CRS, not walking-network distances. Buildings are assigned to statistical areas by their centroid; existing trees and parks can contribute across statistical-area boundaries.
-
-### Optimization approaches
-
-The extension compares the existing **Standard (STD)** baseline with two additional MiniZinc models:
-
-| Model | Optimization objective |
-| --- | --- |
-| [Counterfactual](src/Minizinc/models/std_330300_model.mzn) (`std_330300`) | Adds a locally estimated 3-30-300 benefit to each cell's original TALEA utility, weighted by `gamma_330300`. Its cell-level benefits are not identical to the global post-intervention KPI. |
-| [MaxCoverage](src/Minizinc/models/std_330300_maxcoverage_model.mzn) (`std_330300_maxcoverage`) | Maximizes original STD utility plus `gamma_330300` times the mean fraction of the **initial deficits recovered** for the three criteria, evaluated at building/statistical-area level. |
-
-The models share the original placement constraints, including a maximum number of selected cells, available intervention surfaces, and a minimum allocated surface per selected cell (`delta`).
-
-**Important modeling assumptions and limitations:**
-
-- A Green Cell counts toward **criterion 300** as soon as it is selected and receives the minimum feasible allocation (`delta = 1 m²` in the default experiments). The model **does not** impose a minimum park size, verify public access, or guarantee that this intervention becomes a formally designated park. This is a simplified *potential accessibility* indicator, **not** a claim that every 1 m² intervention is a functioning public park.
-- For **criterion 3**, new trees are estimated as `floor(tree_density_street × street_area + tree_density_yard × yard_area)`. The proximity test uses the geometry of the selected cell relative to a building's centroid; the model does not optimize the precise position of individual newly planted trees inside the cell.
-- For **criterion 30**, estimated canopy is proportional to the newly allocated surface. It is not a simulation of tree growth or future canopy development.
-- The objectives are deliberately different: improving the Counterfactual utility does not necessarily maximize the city-wide KPI. Results should therefore be compared with the same independent post-hoc evaluation.
-
-### Reproducing and inspecting the extension
-
-Configuration is maintained in versioned YAML scenario files under [`config/full/`](config/full/). From the repository root **inside the Docker environment**, after preparing the input data, run one model/scenario at a time:
-
-```bash
-run_model --config config/full/default.yaml --model std_330300
-run_model --config config/full/default.yaml --model std_330300_maxcoverage
-```
-
-The default full-city experiments allow up to **100 selected cells**, use `gamma_330300 = 1`, `delta = 1 m²`, tree density `0.01 trees/m²` (street and yard), and canopy density `0.2 m²/m²` (street and yard). Other YAML scenarios vary `gamma_330300` or the assumed planting densities.
-
-The extension's main files are:
-
-- [`src/330300/prepare_data.py`](src/330300/prepare_data.py) and [`src/330300/compute_index.py`](src/330300/compute_index.py): prepare the geospatial layers, evaluate initial conditions, and create cell-to-building/statistical-area relationships.
-- [`dataset/processed_data/330300/`](dataset/processed_data/330300/): versioned prepared layers and coverage relations used to reproduce the optimization inputs. Re-running `compute_index.py` downloads **current** OpenStreetMap building data and may therefore change the input dataset; use the committed processed files to reproduce the published experiments.
-- [`src/data_parser.py`](src/data_parser.py): builds the MiniZinc instances from the processed layers and scenario parameters.
-- [`results/full/std_330300/`](results/full/std_330300/) and [`results/full/std_330300_maxcoverage/`](results/full/std_330300_maxcoverage/): optimization outputs.
-- [`analysis/evaluate_kpis.py`](analysis/evaluate_kpis.py), [`analysis/plot_kpis.py`](analysis/plot_kpis.py), [`analysis/results/`](analysis/results/) and [`analysis/plots/`](analysis/plots/): common post-hoc KPI evaluation, sensitivity-analysis tables and visualizations.
-
-The **baseline** is evaluated using the same post-hoc assumptions as both extension models. The experimental KPI represents recovery of the defined initial 3-30-300 deficits, not a direct measure of realized public-space access or actual future planted canopy.
+- **[3-30-300 methodology and models](src/330300/README.md)** — input datasets, operational definitions of the 3/30/300 criteria, optimization formulations, limitations and explicit modeling assumptions (including the minimum 1 m² intervention used as a proxy for potential access under criterion 300).
+- **[Experiments, sensitivity analysis and reproducibility](src/330300/EXPERIMENTS.md)** — YAML scenarios, how to run the models, KPI definitions, saved results and comparison plots.
 
 ## Usage
 
