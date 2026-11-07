@@ -52,6 +52,17 @@ Each recovery is normalized by the corresponding full initial deficit, including
 
 Both models retain the underlying TALEA feasibility constraints, a maximum number of selected cells and the minimum allocated area per selected cell (`delta`).
 
+### Exploratory test: 3-30-300 as a macro factor
+
+A separate **test configuration** also incorporates the initial 3-30-300 conditions into the **macro-level utility factor** of the original TALEA models, rather than adding an intervention-dependent benefit to their objective functions.
+
+In [`config/full/default+330300.yaml`](../../config/full/default+330300.yaml), the macro-factor weights are set to **0.25 each** for population density, existing green deficit, UHEI and a new 3-30-300 deficit indicator (`factor_330300_param`). As implemented in [`src/preprocessing.py`](../preprocessing.py), the new indicator is the arithmetic mean of the area's baseline deficits: the fraction of residential buildings failing criterion 3; the remaining canopy shortfall relative to the 30% target, truncated at zero; and the fraction of buildings failing criterion 300.
+
+This is **not a third MiniZinc model**. The YAML file provides profiles for the original `std`, `diff`, `inverse_uhei` and `ndvi` models, which keep their existing optimization formulations but receive modified macro factors. Unlike **Counterfactual** and **MaxCoverage**, the 3-30-300 component here is a **static, area-level priority signal**, not a forecast of gains caused by newly selected Green Cells.
+
+It is kept as an exploratory alternative rather than part of the main three-model evaluation. The usual experiments set `factor_330300_param = 0`; preprocessing regenerates the shared macro-factor data according to the active configuration.
+
+
 ## Modeling assumptions and limits
 
 These assumptions are deliberate approximations; they do not claim to model the complete ecological or urban-planning process.
