@@ -509,17 +509,16 @@ def main():
     buildings["n_trees_50m"] = n_trees
     buildings["score_3"] = score_3
 
-    # Counterfactual coverage.
+    # Counterfactual coverage: validate all results before writing CSVs.
     coverage_300 = compute_counterfactual_300(buildings, grid)
-    coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
-
     coverage_3 = compute_counterfactual_3(buildings, grid)
-    coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
-
     coverage_30 = compute_counterfactual_30(stat_areas, stat_grid)
-    coverage_30.to_csv(CELL_30_COVERAGE_OUT, index=False)
 
     validate_counterfactual_coverages(coverage_3, coverage_30, coverage_300)
+
+    coverage_300.to_csv(CELL_300_COVERAGE_OUT, index=False)
+    coverage_3.to_csv(CELL_3_COVERAGE_OUT, index=False)
+    coverage_30.to_csv(CELL_30_COVERAGE_OUT, index=False)
 
     result = aggregate_results(buildings, stat_areas)
 
