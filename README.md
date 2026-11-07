@@ -149,12 +149,20 @@ The *micro scale* is referred to the grid of 100x100 m cells, and is modeled dif
 > Further details on models, indices and sources of this study can be found in the **report** and in the **documentation**.
 
 
-## 3-30-300 extension (branch `3-30-300`)
+## 3-30-300 Extension
 
-This branch extends the original TALEA Green Cells optimization with the **3-30-300 urban greenness rule**, comparing the existing **Standard** model with two new approaches: **Counterfactual** (local 3-30-300 benefits) and **MaxCoverage** (city-wide recovery of initial greenness deficits). The extension also includes geospatial preparation, common post-hoc KPI evaluation and sensitivity experiments.
+This branch extends the original TALEA Green Cells optimization with the **3-30-300 urban greenness rule**, evaluating the impact of new green interventions on tree proximity, tree-canopy coverage and access to green spaces.
 
-- **[3-30-300 methodology and models](src/330300/README.md)** — input datasets, operational definitions of the 3/30/300 criteria, optimization formulations, limitations and explicit modeling assumptions (including the minimum 1 m² intervention used as a proxy for potential access under criterion 300).
-- **[Experiments, sensitivity analysis and reproducibility](src/330300/EXPERIMENTS.md)** — YAML scenarios, how to run the models, KPI definitions, saved results and comparison plots.
+Two additional optimization approaches are compared with the original **Standard** model:
+
+| Counterfactual | MaxCoverage |
+|:--------------:|:--------------:|
+| It extends the Standard utility function by rewarding the estimated local improvement of the 3-30-300 criteria for each selected Green Cell. | It extends the Standard utility function by rewarding the recovery of the initial 3-30-300 deficits across the city, considering buildings and statistical areas as a whole. |
+
+The extension also includes geospatial data preparation, a common post-hoc KPI evaluation and sensitivity analyses.
+
+> [!NOTE]
+> Further details on the models, criteria and assumptions can be found in the **[3-30-300 methodology](src/330300/README.md)**, while configurations, experiments and results are described in the **[experiments and reproducibility guide](src/330300/EXPERIMENTS.md)**.
 
 ## Usage
 
