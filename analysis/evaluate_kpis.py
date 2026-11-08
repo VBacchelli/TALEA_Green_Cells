@@ -531,6 +531,11 @@ validate_coverage_data(
     coverage_3, coverage_300, coverage_30, deficit_3, deficit_30, uncovered_300
 )
 
+# Baseline statistical-area values shared by all three models.
+areas_30 = stat_areas.set_index("codice_area_statistica").loc[deficit_30.index]
+initial_pct = areas_30["perc_canopy_cover_30"].astype(float)
+area_m2 = areas_30.geometry.area
+
 rows = []
 selected_ids_by_model = {}
 buffered_areas_by_model = {}
@@ -604,11 +609,6 @@ for name, solution in solutions.items():
 
     # Independent C30 check: rebuild the effective post-intervention
     # canopy percentage.
-    areas_30 = stat_areas.set_index("codice_area_statistica").loc[deficit_30.index]
-
-    initial_pct = areas_30["perc_canopy_cover_30"].astype(float)
-    area_m2 = areas_30.geometry.area
-
     final_pct = initial_pct + 100 * added_canopy_by_area / area_m2
 
     # Use the same 1e-6 m² tolerance as the C30 calculation.
