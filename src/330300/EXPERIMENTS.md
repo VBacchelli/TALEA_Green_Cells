@@ -48,7 +48,21 @@ All figures below are percentages; changes in utility are relative to STD **at t
 
 Despite its improved coverage, MaxCoverage selects locations close to STD: it replaces **2, 2, 3 and 5** of STD's selected cells at budgets **50, 75, 100 and 150**, respectively. Counterfactual replaces **15, 18, 19 and 32**. This refers to exact grid-cell IDs, not spatial-buffer Jaccard.
 
-See [`analysis/plots/max_cells_sensitivity.png`](../../analysis/plots/max_cells_sensitivity.png) (also [SVG](../../analysis/plots/max_cells_sensitivity.svg)) for KPI, utility trade-off and placement differences. Other figures cover gamma and density sensitivity.
+## Main figures
+
+**The trade-off at 100 cells.** MaxCoverage improves the 3-30-300 KPI with almost no loss of original TALEA utility; Counterfactual gives up more utility.
+
+![3-30-300 improvement versus original TALEA utility](../../analysis/plots/tradeoff_default.png)
+
+**Changing the number of cells.** MaxCoverage performs best at every tested budget, while keeping the original utility close to STD.
+
+![Sensitivity to the maximum number of selected cells](../../analysis/plots/max_cells_sensitivity.png)
+
+**Changing tree and canopy assumptions.** KPI values change, especially for canopy; the overlap with STD stays the same in these runs.
+
+![Sensitivity to tree and canopy density assumptions](../../analysis/plots/density_sensitivity.png)
+
+Also available: [gamma sensitivity](../../analysis/plots/gamma_sensitivity.png), [individual KPI components](../../analysis/plots/kpi_components_default.png) and [placement Jaccard](../../analysis/plots/jaccard_heatmap_default.png). All figures are also saved as SVG in `analysis/plots/`.
 
 ## Reproducing the comparisons
 
