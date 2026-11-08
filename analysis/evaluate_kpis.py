@@ -168,16 +168,19 @@ def aggregate_cell_effect(
 
 def validate_coverage_data(coverage_3, coverage_300, coverage_30, deficit_3,
                            deficit_30, uncovered_300):
-    required_30_columns = {
-        "cell_id",
-        "codice_area_statistica",
-        "cell_share",
-        "required_canopy_30",
-    }
-    if not required_30_columns.issubset(coverage_30.columns):
-        raise ValueError("Missing fields in Rule 30 CSV")
-    if coverage_30[list(required_30_columns)].isna().any().any():
-        raise ValueError("Missing values in Rule 30 relationships")
+    """Check coverage CSVs against the independently reconstructed deficits."""
+    for frame, columns, label in (
+        (coverage_3, ("cell_id", "building_id", "required_trees"), "Rule 3"),
+        (coverage_30, ("cell_id", "codice_area_statistica", "cell_share",
+                       "required_canopy_30"), "Rule 30"),
+        (coverage_300, ("cell_id", "building_id"), "Rule 300"),
+    ):
+        missing = set(columns) - set(frame.columns)
+        if missing:
+            raise ValueError(f"Missing fields in {label} CSV: {sorted(missing)}")
+        if frame[list(columns)].isna().any().any():
+            raise ValueError(f"Missing values in {label} relationships")
+
     if coverage_30.duplicated(["cell_id", "codice_area_statistica"]).any():
         raise ValueError("Duplicate cell-area relationships in Rule 30 CSV")
     if not coverage_30["cell_share"].between(0, 1).all():
@@ -194,15 +197,7 @@ def validate_coverage_data(coverage_3, coverage_300, coverage_30, deficit_3,
         ).all()
     ):
         raise ValueError("Rule 30 relationships do not match initial deficits")
-    if not {"cell_id", "building_id", "required_trees"}.issubset(coverage_3.columns):
-        raise ValueError("Missing cell_id/building_id/required_trees fields in Rule 3 CSV")
-    if not {"cell_id", "building_id"}.issubset(coverage_300.columns):
-        raise ValueError("Missing cell_id/building_id fields in Rule 300 CSV")
-    if (
-        coverage_3[["cell_id", "building_id", "required_trees"]].isna().any().any()
-        or coverage_300[["cell_id", "building_id"]].isna().any().any()
-    ):
-        raise ValueError("Missing IDs or deficits in coverage CSVs")
+
     if coverage_3.duplicated(["cell_id", "building_id"]).any():
         raise ValueError("Duplicate cell-building relationships in cell_3_coverage.csv")
     if not set(coverage_300["building_id"]).issubset(uncovered_300):
