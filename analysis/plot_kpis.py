@@ -31,6 +31,7 @@ SCENARIOS = (
     "tree_density_medium",
     "tree_density_high",
 )
+SCENARIOS = tuple(dict.fromkeys((*SCENARIOS, "max_cells_50", "max_cells_75", "max_cells_150")))
 
 MODELS = ("STD", "Counterfactual", "MaxCoverage")
 
@@ -1025,6 +1026,97 @@ def plot_density_sensitivity(output_dir):
     )
 
 
+
+def plot_max_cells_sensitivity(output_dir):
+    """Sensitivity to maximum selected cells, compared at an equal budget."""
+    budgets = (
+        (50, "max_cells_50"),
+        (75, "max_cells_75"),
+        (100, "default"),
+        (150, "max_cells_150"),
+    )
+    records = []
+
+    for budget, scenario in budgets:
+        suffix = "" if scenario == "default" else f"_{scenario}"
+        kpis = load_kpis(RESULTS_DIR / f"kpi_comparison{suffix}.csv")
+        if "selected_cells" not in kpis.columns:
+            raise ValueError(f"Missing selected_cells in {scenario} KPIs")
+        if not (pd.to_numeric(kpis["selected_cells"], errors="raise") == budget).all():
+            raise ValueError(f"Expected {budget} selected cells for every model in {scenario}")
+        if scenario != "default":
+            if "max_cells" not in kpis.columns or not (
+                pd.to_numeric(kpis["max_cells"], errors="raise") == budget
+            ).all():
+                raise ValueError(f"Inconsistent max_cells column in {scenario}")
+
+        jaccard_path = RESULTS_DIR / f"jaccard_comparison{suffix}.csv"
+        if not jaccard_path.is_file():
+            raise FileNotFoundError(f"Missing Jaccard comparison: {jaccard_path}")
+        jaccard = pd.read_csv(jaccard_path)
+
+        for model in MODELS:
+            row = kpis.loc[kpis["model"] == model].iloc[0]
+            if model == "STD":
+                changed = 0
+            else:
+                match = jaccard.loc[
+                    ((jaccard["model_a"] == "STD") & (jaccard["model_b"] == model))
+                    | ((jaccard["model_b"] == "STD") & (jaccard["model_a"] == model))
+                ]
+                if len(match) != 1:
+                    raise ValueError(f"Missing or duplicate STD/{model} Jaccard: {scenario}")
+                changed = budget - int(match.iloc[0]["common_cells"])
+                if not 0 <= changed <= budget:
+                    raise ValueError(f"Invalid number of changed cells: {scenario}, {model}")
+
+            records.append({
+                "budget": budget,
+                "model": model,
+                "kpi": float(row["KPI_330300_percent"]),
+                "utility_change": float(row["TALEA_utility_change_percent"]),
+                "changed_cells": changed,
+            })
+
+    data = pd.DataFrame(records)
+    if not np.isfinite(data[["kpi", "utility_change", "changed_cells"]].to_numpy()).all():
+        raise ValueError("Non-finite values in max_cells sensitivity results")
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5.5), constrained_layout=True)
+    panels = (
+        ("kpi", "Composite 3-30-300 KPI", "Recovered initial deficit (%)", MODELS),
+        ("utility_change", "Original TALEA utility", "Change vs. same-budget STD (%)", MODELS[1:]),
+        ("changed_cells", "Changes in placement", "Cells replaced vs. same-budget STD", MODELS[1:]),
+    )
+    x_values = [budget for budget, _ in budgets]
+
+    for ax, (column, title, ylabel, plot_models) in zip(axes, panels):
+        for model in plot_models:
+            subset = data.loc[data["model"] == model].sort_values("budget")
+            ax.plot(
+                subset["budget"], subset[column],
+                marker="o", markersize=7, linewidth=2.2,
+                color=COLORS[model], label=model,
+            )
+        ax.set_title(title, fontsize=12, fontweight="semibold", pad=12)
+        ax.set_xlabel("Maximum selected cells", fontsize=10)
+        ax.set_ylabel(ylabel, fontsize=10)
+        ax.set_xticks(x_values)
+        ax.grid(color="#E8ECEF", linewidth=0.8)
+        ax.set_axisbelow(True)
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+    axes[0].set_ylim(bottom=0)
+    axes[1].axhline(0, color="#8F9BA7", linestyle="--", linewidth=1)
+    axes[2].set_ylim(bottom=0)
+
+    fig.suptitle(
+        "Sensitivity to the maximum number of selected cells",
+        fontsize=15, fontweight="semibold",
+    )
+    axes[0].legend(loc="upper left", frameon=False, fontsize=9)
+    save_figure(fig, output_dir, "max_cells_sensitivity")
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -1078,6 +1170,7 @@ def main():
 
     plot_gamma_sensitivity(output_dir)
     plot_density_sensitivity(output_dir)
+    plot_max_cells_sensitivity(output_dir)
 
 
 if __name__ == "__main__":
