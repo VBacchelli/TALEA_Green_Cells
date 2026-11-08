@@ -1,0 +1,42 @@
+std:
+  size: full
+  max_cells: 25
+  density_param: 0.33
+  green_param: 0.33
+  uhei_param: 0.34
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  res_name: max_cells_25
+std_330300:
+  size: full
+  max_cells: 25
+  density_param: 0.33
+  green_param: 0.33
+  uhei_param: 0.34
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  gamma_330300: 1.0
+  delta: 1.0
+  tree_density_street: 0.01
+  tree_density_yard: 0.01
+  canopy_density_street: 0.2
+  canopy_density_yard: 0.2
+  res_name: max_cells_25
+std_330300_maxcoverage:
+  size: full
+  max_cells: 25
+  density_param: 0.33
+  green_param: 0.33
+  uhei_param: 0.34
+  beta_streets: 0.2
+  alpha_yards: 0.8
+  alpha_uhei: 0.0
+  gamma_330300: 1.0
+  delta: 1.0
+  tree_density_street: 0.01
+  tree_density_yard: 0.01
+  canopy_density_street: 0.2
+  canopy_density_yard: 0.2
+  res_name: max_cells_25

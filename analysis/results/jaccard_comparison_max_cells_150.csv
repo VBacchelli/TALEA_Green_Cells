@@ -1,0 +1,4 @@
+scenario,max_cells,model_a,model_b,selected_cells_a,selected_cells_b,common_cells,union_cells,jaccard_percent,spatial_buffer_m,spatial_intersection_m2,spatial_union_m2,spatial_jaccard_percent
+max_cells_150,150,STD,Counterfactual,150,150,118,182,64.83516483516483,100.0,5430730.800895269,7539506.836469822,72.0303186758309
+max_cells_150,150,STD,MaxCoverage,150,150,145,155,93.54838709677419,100.0,6499536.231281922,6938274.163850561,93.67655526132812
+max_cells_150,150,Counterfactual,MaxCoverage,150,150,119,181,65.74585635359117,100.0,5495717.344726788,7670874.525905746,71.64394784671407
