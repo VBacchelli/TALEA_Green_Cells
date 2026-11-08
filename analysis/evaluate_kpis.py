@@ -148,6 +148,24 @@ def prepare_solution(solution, name, spatial_buffer_m):
     return selected_allocations, buffered_area
 
 
+def aggregate_cell_effect(
+    coverage, selected_cells, effect_by_cell, group_column, target_index,
+    weight_column=None,
+):
+    """Sum the effects of selected cells per building or statistical area."""
+    matched = coverage.loc[coverage["cell_id"].isin(selected_cells)].copy()
+    matched["effect"] = matched["cell_id"].map(effect_by_cell)
+    if matched["effect"].isna().any():
+        raise ValueError(f"Missing cell allocations in {group_column} coverage")
+    if weight_column is not None:
+        matched["effect"] *= matched[weight_column]
+    return (
+        matched.groupby(group_column)["effect"]
+        .sum()
+        .reindex(target_index, fill_value=0)
+    )
+
+
 def validate_coverage_data(coverage_3, coverage_300, coverage_30, deficit_3,
                            deficit_30, uncovered_300):
     required_30_columns = {
@@ -547,16 +565,9 @@ for name, solution in solutions.items():
     ).astype(int)
     trees_by_cell = selected_allocations.set_index("id")["added_trees"]
 
-    # Each building receives trees from every active cell within reach
-    # (50 m relationships computed during preprocessing).
-    reachable_3 = coverage_3.loc[coverage_3["cell_id"].isin(selected)].copy()
-    reachable_3["added_trees"] = reachable_3["cell_id"].map(trees_by_cell)
-    if reachable_3["added_trees"].isna().any():
-        raise ValueError(f"Rule 3 relationships lack a matching allocation for {name}")
-    added_trees_by_building = (
-        reachable_3.groupby("building_id")["added_trees"]
-        .sum()
-        .reindex(deficit_3.index, fill_value=0)
+    # Sum the trees of all selected cells within reach of each building.
+    added_trees_by_building = aggregate_cell_effect(
+        coverage_3, selected, trees_by_cell, "building_id", deficit_3.index
     )
 
     # g_b = min(d_b, reachable added trees): each building's benefit is
@@ -574,20 +585,11 @@ for name, solution in solutions.items():
 
     canopy_by_cell = selected_allocations.set_index("id")["added_canopy"]
 
-    # Relationships between selected cells and statistical areas.
-    reachable_30 = coverage_30.loc[coverage_30["cell_id"].isin(selected)].copy()
-
-    # Distribute canopy using cell_share.
-    reachable_30["added_canopy_area"] = (
-        reachable_30["cell_id"].map(canopy_by_cell) * reachable_30["cell_share"]
-    )
-
-    # Sum all cell contributions for each area.
-    # Areas without reachable cells receive zero benefit.
-    added_canopy_by_area = (
-        reachable_30.groupby("codice_area_statistica")["added_canopy_area"]
-        .sum()
-        .reindex(deficit_30.index, fill_value=0.0)
+    # Distribute each cell's canopy by its intersection share and sum by area.
+    added_canopy_by_area = aggregate_cell_effect(
+        coverage_30, selected, canopy_by_cell,
+        "codice_area_statistica", deficit_30.index,
+        weight_column="cell_share",
     )
 
     # Cap the benefit at each area's initial deficit.
