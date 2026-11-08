@@ -47,11 +47,9 @@ def load_scenario_profiles(
                 f"{model} profile: res_name must be '{scenario}' "
                 "and size must be 'full'."
             )
-        if profile.get("max_cells") != 100:
-            parser.error(
-                f"{model} profile: this evaluation uses the 100-cell STD baseline; "
-                "a max_cells sweep requires a dedicated evaluation."
-            )
+        limit = profile.get("max_cells")
+        if type(limit) is not int or limit <= 0:
+            parser.error(f"{model} profile: max_cells must be a positive integer.")
 
         values = {}
         for field in density_fields:
@@ -66,6 +64,10 @@ def load_scenario_profiles(
 
     if scenario_profiles["std_330300"] != scenario_profiles["std_330300_maxcoverage"]:
         parser.error("The two 3-30-300 models must use the same densities.")
+
+    max_cells = scenario_config["std_330300"]["max_cells"]
+    if scenario_config["std_330300_maxcoverage"]["max_cells"] != max_cells:
+        parser.error("Counterfactual and MaxCoverage must use the same max_cells.")
 
     scenario_gamma = None
     if scenario.startswith("gamma_"):
@@ -82,7 +84,7 @@ def load_scenario_profiles(
             parser.error("The two models must use the same gamma_330300.")
         scenario_gamma = gamma_values[0]
 
-    return scenario_profiles, scenario_gamma
+    return scenario_profiles, scenario_gamma, max_cells
 
 
 def load_solutions(root, models, result_names, scenario, scenario_path):
@@ -228,11 +230,6 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--scenario",
-    choices=(
-        "default",
-        "tree_density_low", "tree_density_medium", "tree_density_high",
-        "gamma_0", "gamma_low", "gamma_medium", "gamma_high",
-    ),
     default="default",
     help="Sensitivity scenario in config/full/<scenario>.yaml (default: default)",
 )
@@ -268,6 +265,13 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+# A scenario is a file stem, not an arbitrary filesystem path.
+if not args.scenario or any(
+    c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+    for c in args.scenario
+):
+    parser.error("--scenario accepts only letters, digits, '_' and '-'.")
+
 density_fields = (
     "tree_density_street",
     "tree_density_yard",
@@ -295,9 +299,33 @@ with scenario_path.open(encoding="utf-8") as config_file:
 
 # The gamma sweep keeps physical densities fixed; the actual weight is
 # recorded in the CSV files for reproducible comparisons.
-scenario_profiles, scenario_gamma = load_scenario_profiles(
+scenario_profiles, scenario_gamma, max_cells = load_scenario_profiles(
     scenario_config, args.scenario, density_fields, scenario_path, parser
 )
+
+# New cell-budget scenarios need their own STD optimization result.
+# Keep the existing default STD baseline for legacy gamma/density scenarios.
+budget_sweep = max_cells != 100 or args.scenario.startswith("max_cells_")
+if budget_sweep:
+    std_profile = scenario_config.get("std")
+    if not isinstance(std_profile, dict) or any((
+        std_profile.get("size") != "full",
+        std_profile.get("max_cells") != max_cells,
+        std_profile.get("res_name") != args.scenario,
+    )):
+        parser.error(
+            f"Scenario '{args.scenario}' needs an STD profile with "
+            f"size=full, max_cells={max_cells} and res_name='{args.scenario}'."
+        )
+    for field in ("density_param", "green_param", "uhei_param", "beta_streets", "alpha_yards"):
+        if any(
+            scenario_config[model].get(field) != std_profile.get(field)
+            for model in ("std_330300", "std_330300_maxcoverage")
+        ):
+            parser.error(f"All three models must share '{field}' in a max_cells sweep.")
+    std_result_name = args.scenario
+else:
+    std_result_name = "default"
 
 density_values = scenario_profiles["std_330300"].copy()
 density_values.update({key: val for key, val in overrides.items() if val is not None})
@@ -316,7 +344,7 @@ if not (np.isfinite(SPATIAL_BUFFER_M) and SPATIAL_BUFFER_M > 0):
 # STD does not use tree/canopy data during optimization and remains the baseline.
 # The other two models use the selected scenario's results.
 result_names = {
-    "STD": "default",
+    "STD": std_result_name,
     "Counterfactual": args.scenario,
     "MaxCoverage": args.scenario,
 }
@@ -330,16 +358,37 @@ std_solution = solutions["STD"]
 if "utility" not in std_solution.columns:
     raise ValueError("Utility missing from the STD solution")
 
-std_original_utility = std_solution["utility"].sum() / 100
+std_original_utility = std_solution["utility"].sum() / max_cells
 
 # Independent reconstruction of the original TALEA utility.
 # Parameters are read from the STD MiniZinc instance.
 
-dzn_path = ROOT / "src/Minizinc/instances/std_instance.dzn"
+std_instance_filename = (
+    "std_instance.dzn" if std_result_name == "default"
+    else f"std_{std_result_name}_instance.dzn"
+)
+dzn_path = ROOT / "src/Minizinc/instances" / std_instance_filename
 dzn = dzn_path.read_text(encoding="utf-8")
 
 alpha_yard = float(dzn.split("alpha_yard = ", 1)[1].split(";", 1)[0])
 top_k = int(dzn.split("top_k = ", 1)[1].split(";", 1)[0])
+if top_k != max_cells:
+    raise ValueError(
+        f"The STD instance uses top_k={top_k}, but the scenario requires {max_cells}."
+    )
+
+if budget_sweep:
+    for model in ("std_330300", "std_330300_maxcoverage"):
+        instance_path = (
+            ROOT / "src/Minizinc/instances"
+            / f"{model}_{args.scenario}_instance.dzn"
+        )
+        model_dzn = instance_path.read_text(encoding="utf-8")
+        model_top_k = int(model_dzn.split("top_k = ", 1)[1].split(";", 1)[0])
+        if model_top_k != max_cells:
+            raise ValueError(
+                f"{instance_path} uses top_k={model_top_k}, expected {max_cells}."
+            )
 
 fields = [
     "street_space", "ext_space", "green_space",
@@ -472,6 +521,10 @@ for name, solution in solutions.items():
         solution, name, SPATIAL_BUFFER_M
     )
     selected = selected_allocations["id"]
+    if selected.nunique() > max_cells:
+        raise ValueError(
+            f"{name} selected {selected.nunique()} cells (maximum: {max_cells})."
+        )
     # Same grid for every model: IDs identify selected positions
     # without duplicate counts.
     selected_ids_by_model[name] = set(selected)
@@ -588,6 +641,8 @@ for name, solution in solutions.items():
     )
 
 comparison = pd.DataFrame(rows)
+if budget_sweep:
+    comparison.insert(0, "max_cells", max_cells)
 if args.scenario != "default":
     comparison.insert(0, "scenario", args.scenario)
     comparison.insert(2, "placement", comparison["model"].map(result_names))
@@ -685,6 +740,8 @@ for (model_a, ids_a), (model_b, ids_b) in combinations(
     )
 
 jaccard_comparison = pd.DataFrame(jaccard_rows)
+if budget_sweep:
+    jaccard_comparison.insert(0, "max_cells", max_cells)
 if args.scenario != "default":
     jaccard_comparison.insert(0, "scenario", args.scenario)
     if scenario_gamma is not None:
