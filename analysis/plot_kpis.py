@@ -893,6 +893,22 @@ def plot_density_sensitivity(output_dir):
         data = pd.read_csv(path)
         data["scenario"] = scenario
 
+        # Exact-cell placement similarity with the same 100-cell STD baseline.
+        jaccard = pd.read_csv(
+            RESULTS_DIR / f"jaccard_comparison_{scenario}.csv"
+        )
+        for model in ("Counterfactual", "MaxCoverage"):
+            pair = jaccard.loc[
+                ((jaccard["model_a"] == "STD") & (jaccard["model_b"] == model))
+                | ((jaccard["model_b"] == "STD") & (jaccard["model_a"] == model))
+            ]
+            if len(pair) != 1:
+                raise ValueError(f"Missing or duplicate STD/{model} Jaccard in {scenario}")
+            value = float(pair["jaccard_percent"].iloc[0])
+            if not np.isfinite(value) or not 0 <= value <= 100:
+                raise ValueError(f"Invalid Jaccard for {model} in {scenario}")
+            data.loc[data["model"] == model, "jaccard_vs_std"] = value
+
         frames.append(data)
 
     data = pd.concat(frames, ignore_index=True)
@@ -918,12 +934,18 @@ def plot_density_sensitivity(output_dir):
             None,
             "Density scenario",
         ),
+        (
+            "jaccard_vs_std",
+            "Placement overlap vs. STD",
+            None,
+            "Density scenario",
+        ),
     ]
 
     fig, axes = plt.subplots(
         1,
-        3,
-        figsize=(14, 5.5),
+        4,
+        figsize=(17, 5.5),
         constrained_layout=True,
     )
 
@@ -931,7 +953,8 @@ def plot_density_sensitivity(output_dir):
 
     for ax, (column, title, density_column, xlabel) in zip(axes, metrics):
 
-        for model in models:
+        panel_models = models[1:] if column == "jaccard_vs_std" else models
+        for model in panel_models:
             subset = (
                 data.loc[data["model"] == model].set_index("scenario").loc[scenarios]
             )
@@ -961,7 +984,8 @@ def plot_density_sensitivity(output_dir):
         )
 
         ax.set_xlabel(xlabel, fontsize=10)
-        ax.set_ylabel("KPI (%)", fontsize=10)
+        ylabel = "Jaccard (%)" if column == "jaccard_vs_std" else "KPI (%)"
+        ax.set_ylabel(ylabel, fontsize=10)
 
         if density_column is None:
             ax.set_xticks([0, 1, 2])
@@ -971,8 +995,11 @@ def plot_density_sensitivity(output_dir):
             ax.set_xticks(values)
             ax.set_xticklabels([f"{v:g}" for v in values])
 
-        # Absolute KPI values: vertical axes start at zero.
-        ax.set_ylim(bottom=0)
+        # Percentages are bounded; the KPI axes start at zero.
+        if column == "jaccard_vs_std":
+            ax.set_ylim(0, 100)
+        else:
+            ax.set_ylim(bottom=0)
 
         ax.grid(
             color="#E8ECEF",
@@ -1010,7 +1037,7 @@ def plot_density_sensitivity(output_dir):
             "Medium: 0.010 trees/m², 0.20 canopy   |   "
             "High: 0.015 trees/m², 0.30 canopy\n"
             "Tree and canopy densities vary jointly. "
-            "P300 and selected cell locations remain unchanged across scenarios."
+            "Jaccard measures exact-cell overlap with STD."
         ),
         ha="center",
         va="top",
