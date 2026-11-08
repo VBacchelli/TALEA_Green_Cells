@@ -1,100 +1,72 @@
-# 3-30-300 extension: experiments and evaluation
+# 3-30-300 extension: experiments and results
 
-[Methodology and assumptions](README.md) · [Back to the project README](../../README.md)
+[Methodology and assumptions](README.md) · [Project README](../../README.md)
 
-This document describes the full-city optimization experiments performed on the `3-30-300` branch. All three models are compared with the same independent post-hoc evaluation, rather than treating their different MiniZinc objective values as directly comparable.
+The original TALEA Standard (**STD**), **Counterfactual** and **MaxCoverage** placements are evaluated on the same full-city grid using identical post-hoc assumptions. The optimization objectives themselves are not directly comparable.
 
-## Models and scenarios
+## Experimental design
 
-- **STD** (`std`): original TALEA Standard baseline, from the `default` scenario.
-- **Counterfactual** (`std_330300`): original local utility augmented with a weighted, locally estimated 3-30-300 benefit.
-- **MaxCoverage** (`std_330300_maxcoverage`): original utility augmented with normalized city-wide deficit recovery.
+The reference scenario is [`config/full/default.yaml`](../../config/full/default.yaml): `max_cells = 100`, `gamma_330300 = 1`, `delta = 1 m²`, street/yard tree density **0.01 trees/m²**, street/yard canopy density **0.20 m²/m²**, street weight `beta_streets = 0.2`, yard weight `alpha_yards = 0.8`. Original macro weights remain **0.33** population density, **0.33** green deficit and **0.34** UHEI.
 
-All experiments discussed here use the **full** grid, **100 maximum selected cells**, and the original macro weights (population density **0.33**, existing green **0.33**, UHEI **0.34**). The baseline extension configuration is [`config/full/default.yaml`](../../config/full/default.yaml):
+Three sensitivity analyses use the YAML profiles in [`config/full/`](../../config/full/):
 
-| Parameter | Default |
-| --- | ---: |
-| `gamma_330300` | 1.0 |
-| `delta` | 1 m² |
-| `tree_density_street`, `tree_density_yard` | 0.01 trees/m² |
-| `canopy_density_street`, `canopy_density_yard` | 0.20 m²/m² |
-| `beta_streets` | 0.2 |
-| `alpha_yards` | 0.8 |
-
-The versioned YAML files in [`config/full/`](../../config/full/) provide two sensitivity sweeps:
-
-| Sweep | YAML profiles | Changed parameters |
+| Sensitivity | Values | Comparison |
 | --- | --- | --- |
-| Contribution weight | `gamma_0`, `gamma_low`, `gamma_medium`, `gamma_high` | `gamma_330300` = **0, 0.5, 1, 2**, while physical densities remain at the default |
-| Assumed tree and canopy densities | `tree_density_low`, `tree_density_medium`, `tree_density_high` | **Low:** 0.005 trees/m² and 0.10 canopy; **medium:** 0.010 and 0.20; **high:** 0.015 and 0.30; `gamma_330300 = 1` |
+| **3-30-300 weight** | `gamma_0`, `gamma_low`, `gamma_medium`, `gamma_high`: **0, 0.5, 1, 2** | Both extension models vs. the unchanged 100-cell STD baseline. |
+| **Tree and canopy density** | `tree_density_low`, `_medium`, `_high`: **0.005/0.10**, **0.010/0.20**, **0.015/0.30** (trees/m² / canopy m²/m²) | Street and yard densities vary **together**; their separate effects are not isolated. |
+| **Maximum selected cells** | **50, 75, 100, 150** | `max_cells_50`, `max_cells_75`, `default`, `max_cells_150`; **all three models are reoptimized at the same budget**, including STD. |
 
-Street and yard parameters are varied together in the density sweep, so it is not a factorial experiment and cannot isolate their individual effects.
+Other settings remain fixed within each sweep. The originally tested 25-cell run is not part of the reported budget sensitivity.
 
-## Reproducing optimization results
+## Comparable KPIs
 
-Run these commands from the repository root **inside the project's Docker environment**. The processed data in [`dataset/processed_data/330300/`](../../dataset/processed_data/330300/) should be retained for reproducibility: rebuilding the OSM-derived input can change it.
+[`analysis/evaluate_kpis.py`](../../analysis/evaluate_kpis.py) applies the same physical assumptions to the selected placements and reports:
 
-Run the STD baseline first (unless the committed result already suffices):
-
-```bash
-run_model --config config/full/default.yaml --model std
-```
-
-Then run the two extension models for a given scenario, e.g. the default:
-
-```bash
-run_model --config config/full/default.yaml --model std_330300
-run_model --config config/full/default.yaml --model std_330300_maxcoverage
-```
-
-To regenerate sensitivity runs, substitute a versioned YAML file, such as `config/full/gamma_high.yaml` or `config/full/tree_density_low.yaml`, for `default.yaml`. The scenario profile's `res_name` determines the result filename. Execute both extension models for each scenario before evaluating it.
-
-Model outputs are stored in:
-
-- [`results/full/std/`](../../results/full/std/)
-- [`results/full/std_330300/`](../../results/full/std_330300/)
-- [`results/full/std_330300_maxcoverage/`](../../results/full/std_330300_maxcoverage/)
-
-**Important:** The complete upstream geospatial pipeline need not be rerun for every YAML parameter change. Optimization results depend on the processed grid and the three prepared coverage datasets. To reproduce published results, keep these input versions fixed.
-
-## Post-hoc evaluation and KPIs
-
-[`analysis/evaluate_kpis.py`](../../analysis/evaluate_kpis.py) evaluates the final placements of STD, Counterfactual and MaxCoverage under **identical** physical assumptions for each scenario. The STD baseline placement remains fixed in the sensitivity comparisons.
-
-The main measures are:
-
-| Output metric | Interpretation |
+| Metric | Meaning |
 | --- | --- |
-| `P3_percent` | Percentage of the initial *missing-tree count* recovered, capped at each affected building's initial deficit |
-| `P30_percent` | Percentage of the initial *missing canopy area* recovered, capped at each affected statistical area's initial deficit |
-| `P300_percent` | Percentage of initially uncovered buildings that gain modeled access within 300 m |
-| `KPI_330300_percent` | Arithmetic mean of `P3_percent`, `P30_percent` and `P300_percent` |
-| `TALEA_original_utility` | Original TALEA objective evaluated for each final placement using the same baseline inputs |
-| `TALEA_utility_change_percent` | Change in original TALEA utility relative to the STD baseline |
+| `P3_percent` | Share of initially missing trees supplied, capped at each building's deficit. |
+| `P30_percent` | Share of initially missing canopy area recovered, capped at each statistical area's deficit. |
+| `P300_percent` | Share of initially uncovered buildings newly reached within 300 m. |
+| `KPI_330300_percent` | Arithmetic mean of **P3, P30 and P300**. |
+| `TALEA_original_utility` | Original TALEA utility, reconstructed consistently for all placements at the **same cell budget**. |
+| `TALEA_utility_change_percent` | Percentage change in original utility relative to the matching STD placement. |
 
-These are **estimated recovery indicators**, not direct measurements of realized improvements, planted trees or actual access to a newly built park. In particular, `P3_percent` and `P30_percent` measure recovered deficits, which is distinct from the proportion of fully compliant buildings/statistical areas. The post-hoc evaluation also exports complementary compliance counts (`new_buildings_meeting_3`, `new_areas_meeting_30`) and spatial-placement comparisons where available.
+Additional outputs include buildings/areas reaching compliance (`C3_percent`, `C30_percent`) and **Jaccard** similarity between selected cell IDs or buffered cell geometries. Recovered-deficit percentages are **not** the same as fully compliant-building/area percentages. None of these indicators measures realized planting, canopy growth or actual park access.
 
-To generate the default comparison from committed results:
+## Results: maximum-cell sensitivity
+
+All figures below are percentages; changes in utility are relative to STD **at the same budget**.
+
+| Max. cells | STD KPI | Counterfactual KPI | MaxCoverage KPI | Counterfactual Δ utility | MaxCoverage Δ utility |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| **50** | 10.71 | 11.72 | **12.34** | −7.38 | **−0.14** |
+| **75** | 14.42 | 15.69 | **17.71** | −6.89 | **−0.42** |
+| **100** | 17.52 | 17.53 | **19.71** | −5.05 | **−0.22** |
+| **150** | 20.62 | 22.36 | **26.14** | −5.40 | **−0.76** |
+
+**MaxCoverage leads on the composite KPI at every budget**, while reducing original TALEA utility by less than 1% in these runs. At **150 cells**, its KPI exceeds STD by **5.52 percentage points** (26.14% vs. 20.62%). The gain is not strictly monotonic across budgets: it is smaller at 100 cells than at 75.
+
+Despite its improved coverage, MaxCoverage selects locations close to STD: it replaces **2, 2, 3 and 5** of STD's selected cells at budgets **50, 75, 100 and 150**, respectively. Counterfactual replaces **15, 18, 19 and 32**. This refers to exact grid-cell IDs, not spatial-buffer Jaccard.
+
+See [`analysis/plots/max_cells_sensitivity.png`](../../analysis/plots/max_cells_sensitivity.png) (also [SVG](../../analysis/plots/max_cells_sensitivity.svg)) for KPI, utility trade-off and placement differences. Other figures cover gamma and density sensitivity.
+
+## Reproducing the comparisons
+
+Run from the repository root **inside the project's Docker environment**, using the committed processed data. For a maximum-cell scenario, run all three models with the **same YAML file** before evaluating it:
 
 ```bash
-python3 analysis/evaluate_kpis.py --scenario default
+run_model --config config/full/max_cells_150.yaml --model std
+run_model --config config/full/max_cells_150.yaml --model std_330300
+run_model --config config/full/max_cells_150.yaml --model std_330300_maxcoverage
+python3 analysis/evaluate_kpis.py --scenario max_cells_150
+```
+
+For the gamma and density sweeps, the original **100-cell STD/default** solution serves as the reference; run the two extension models for each YAML scenario. For the default run, use `--scenario default` and `config/full/default.yaml`.
+
+To regenerate the aggregate figures after all comparison CSVs are present:
+
+```bash
 python3 analysis/plot_kpis.py --scenario default
 ```
 
-To evaluate another saved scenario, replace `default` with its name (e.g. `gamma_high` or `tree_density_low`). Plotting also uses the saved sensitivity comparisons to produce cross-scenario figures.
-
-The saved artifacts are available in:
-
-- [`analysis/results/`](../../analysis/results/): `kpi_comparison*.csv` and `jaccard_comparison*.csv`
-- [`analysis/plots/`](../../analysis/plots/): PNG and SVG figures
-
-Jaccard metrics compare the overlap in selected grid-cell IDs and, separately, a **buffered polygon** measure of spatial overlap. A high spatial Jaccard is not the same as choosing the same cell IDs.
-
-## How to interpret comparisons
-
-1. Compare the post-hoc `KPI_330300_percent` across all three models to assess modeled recovery of 3-30-300 deficits.
-2. Compare `TALEA_original_utility` to quantify the trade-off against the original TALEA objective.
-3. Use sensitivity scenarios to inspect the influence of the contribution weight and physical conversion assumptions.
-4. Do **not** compare raw MiniZinc objective values from Counterfactual and MaxCoverage as if they were identical scales.
-
-The assumptions that particularly affect interpretation—the treatment of a selected Green Cell as potential 300-m access even with a 1 m² minimum intervention, and the cell-level proxy for newly planted trees—are explained in the [methodology README](README.md).
+Optimized placements are saved under [`results/full/`](../../results/full/). KPI and Jaccard CSVs are saved in [`analysis/results/`](../../analysis/results/), and PNG/SVG plots in [`analysis/plots/`](../../analysis/plots/). Rebuilding the live OpenStreetMap input may change the baseline, so use the versioned processed dataset for reproducibility.
